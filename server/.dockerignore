@@ -11,4 +11,10 @@ env/
 README.md
 *.log
 .DS_Store
+logs/
+*.md
+test.py
+deploy.sh
+gunicorn_config.py
+*.example
 

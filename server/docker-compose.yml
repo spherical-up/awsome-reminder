@@ -2,7 +2,12 @@ version: '3.8'
 
 services:
   reminder-server:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # 使用构建缓存加速
+      cache_from:
+        - python:3.9-slim
     container_name: reminder-server
     ports:
       - "127.0.0.1:5000:5000"  # 只绑定本地，通过 Nginx 访问
@@ -12,7 +17,7 @@ services:
       - ./logs:/var/log/reminder-server
     restart: always
     healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/api/health')"]
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
