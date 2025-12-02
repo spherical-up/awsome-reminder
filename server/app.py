@@ -16,7 +16,14 @@ import logging
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)  # 允许跨域请求
+# 配置 CORS，允许所有来源（开发环境）
+CORS(app, resources={
+    r"/api/*": {
+        "origins": "*",
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)

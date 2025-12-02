@@ -2,6 +2,20 @@
 
 ## 一、准备工作
 
+### 0. 重要：开发环境配置
+
+**在开始测试前，必须先配置微信开发者工具：**
+
+1. 打开微信开发者工具
+2. 点击右上角 **"详情"** 按钮
+3. 选择 **"本地设置"** 标签
+4. **勾选** **"不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书"**
+
+**为什么需要这样做？**
+- 开发环境使用 `localhost` 不在微信的合法域名列表中
+- 不关闭校验会报 `403 Forbidden` 错误
+- 这仅用于开发测试，生产环境必须配置合法域名
+
 ### 1. 检查配置
 
 **服务端配置检查：**
@@ -82,13 +96,71 @@ curl http://localhost:5000/api/health
 
 ### 4. 测试用户登录接口（获取 openid）
 
+#### 方法1：从小程序获取 code（推荐）
+
+1. **在微信开发者工具中：**
+   - 打开小程序项目
+   - 打开"调试器" -> "Console"
+   - 在控制台输入以下代码：
+
+```javascript
+wx.login({
+  success: (res) => {
+    console.log('获取到的 code:', res.code)
+    // 复制这个 code 用于测试
+  }
+})
+```
+
+2. **使用获取到的 code 测试接口：**
+
 ```bash
 curl -X POST http://localhost:5000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"code": "test_code"}'
+  -d '{"code": "0f3SKLkl2cMOKg4zStol2S5cVZ1SKLk3"}'
 ```
 
-**注意**：这里需要使用真实的 code，可以从小程序端获取。
+**注意：**
+- code 只能使用一次，每次调用 `wx.login()` 都会获取新的 code
+- code 有效期 5 分钟
+- 如果 code 已使用过，会返回 `40029: code been used`
+
+#### 方法2：使用测试脚本
+
+在小程序中添加一个测试页面，或者直接在控制台执行：
+
+```javascript
+// 在小程序控制台执行
+wx.login({
+  success: (res) => {
+    if (res.code) {
+      // 直接调用服务端接口
+      wx.request({
+        url: 'http://localhost:5000/api/auth/login',
+        method: 'POST',
+        data: {
+          code: res.code
+        },
+        success: (result) => {
+          console.log('登录结果:', result.data)
+          if (result.data.errcode === 0) {
+            console.log('openid:', result.data.data.openid)
+          }
+        }
+      })
+    }
+  }
+})
+```
+
+#### 方法3：跳过登录测试（直接使用 openid）
+
+如果只是想测试其他接口，可以跳过登录，直接使用一个测试 openid：
+
+```bash
+# 直接使用测试 openid（不推荐，仅用于开发测试）
+# 真实的 openid 需要通过 code 换取
+```
 
 ### 5. 测试创建提醒接口
 
@@ -144,7 +216,39 @@ const API_BASE_URL = 'http://localhost:5000/api'
 2. 导入项目目录
 3. 确认 AppID 已配置
 
-#### 步骤2：测试添加提醒
+#### 步骤1.5：关闭域名校验（开发环境必需）
+
+**重要：** 开发环境使用 `localhost` 时，必须关闭域名校验，否则会报 403 错误。
+
+**方法：**
+1. 在微信开发者工具中，点击右上角的 **"详情"** 按钮
+2. 选择 **"本地设置"** 标签
+3. 勾选 **"不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书"**
+4. 关闭详情窗口
+
+**注意：**
+- 这仅用于开发环境测试
+- 生产环境必须配置合法的服务器域名
+- 真机预览时，建议使用局域网IP而不是 localhost
+
+**如果仍然报 403 错误：**
+- 检查服务端是否已启动
+- 确认服务端地址是否正确
+- 尝试使用局域网IP代替 localhost
+
+#### 步骤2：获取 code（用于测试接口）
+在控制台执行：
+
+```javascript
+wx.login({
+  success: (res) => {
+    console.log('获取到的 code:', res.code)
+    // 复制这个 code 用于 curl 测试
+  }
+})
+```
+
+#### 步骤3：测试添加提醒
 1. 点击右下角"+"按钮
 2. 输入提醒内容
 3. 选择提醒时间
@@ -157,12 +261,17 @@ const API_BASE_URL = 'http://localhost:5000/api'
 - 显示"添加成功"提示
 - 返回首页，新提醒显示在列表顶部
 
-#### 步骤3：检查控制台
+#### 步骤4：检查控制台
 打开开发者工具的"调试器" -> "Console"，查看日志：
 
 ```
 提醒已保存到服务端，将在指定时间发送订阅消息
 ```
+
+**查看网络请求：**
+- 打开"调试器" -> "Network"
+- 可以看到发送到服务端的请求
+- 查看请求参数和响应结果
 
 ### 3. 真机测试
 
@@ -264,17 +373,30 @@ WX_APPSECRET=正确的AppSecret
 
 ### 问题3：小程序无法连接服务端
 
-**错误：** `request:fail`
+**错误：** `request:fail` 或 `403 Forbidden`
 
 **检查：**
 1. 服务端是否已启动
 2. 服务端地址是否正确
-3. 真机测试时是否使用了局域网IP
+3. 是否关闭了域名校验（开发环境）
+4. 真机测试时是否使用了局域网IP
 
 **解决：**
-- 开发环境：使用 `http://localhost:5000`
-- 真机测试：使用 `http://192.168.x.x:5000`
-- 检查防火墙设置
+
+**开发环境（微信开发者工具）：**
+1. 点击右上角 **"详情"** -> **"本地设置"**
+2. 勾选 **"不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书"**
+3. 使用 `http://localhost:5000` 或局域网IP
+
+**真机测试：**
+- 必须使用局域网IP：`http://192.168.x.x:5000`
+- 不能使用 `localhost`
+- 确保手机和电脑在同一局域网
+
+**生产环境：**
+- 必须配置合法的服务器域名
+- 必须使用 HTTPS
+- 在微信公众平台配置服务器域名
 
 ### 问题4：订阅消息授权失败
 
@@ -311,10 +433,22 @@ print(f"提醒时间: {reminder_time}, 当前时间: {datetime.now()}")
 **检查：**
 1. code 是否有效（code 只能使用一次）
 2. AppID 和 AppSecret 是否正确
+3. code 是否已过期（有效期 5 分钟）
 
 **解决：**
-- 确保每次调用都使用新的 code
+- 确保每次调用都使用新的 code（重新调用 `wx.login()`）
 - 检查微信公众平台的 AppID 和 AppSecret
+- 如果 code 已使用，会返回错误：`40029: code been used`
+
+**如何获取新的 code：**
+```javascript
+// 在小程序控制台或代码中
+wx.login({
+  success: (res) => {
+    console.log('新的 code:', res.code)
+  }
+})
+```
 
 ## 六、调试技巧
 
