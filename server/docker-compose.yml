@@ -5,19 +5,16 @@ services:
     build: .
     container_name: reminder-server
     ports:
-      - "5000:5000"
-    environment:
-      - WX_APPID=${WX_APPID}
-      - WX_APPSECRET=${WX_APPSECRET}
-      - WX_TEMPLATE_ID=${WX_TEMPLATE_ID}
-      - FLASK_ENV=production
+      - "127.0.0.1:5000:5000"  # 只绑定本地，通过 Nginx 访问
+    env_file:
+      - .env
     volumes:
       - ./logs:/var/log/reminder-server
-      - ./.env:/app/.env
     restart: always
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/api/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 10s
 
