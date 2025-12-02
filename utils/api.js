@@ -2,10 +2,14 @@
 // API 请求工具类
 
 // 配置服务端地址（开发环境）
-const API_BASE_URL = 'http://localhost:5000/api'
+// 注意：微信开发者工具不支持 localhost，需要使用本地 IP
+// 获取本地 IP: ifconfig | grep "inet " | grep -v 127.0.0.1
+const API_BASE_URL = 'http://192.168.31.100:5000/api'
+// 如果本地 IP 不行，可以尝试 127.0.0.1（但通常不行）
+// const API_BASE_URL = 'http://127.0.0.1:5000/api'
 
 // 生产环境配置
-// const API_BASE_URL = 'https://your-server.com/api'
+// const API_BASE_URL = 'https://www.6ht6.com/api'
 
 /**
  * 获取用户 openid

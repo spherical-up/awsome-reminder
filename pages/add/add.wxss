@@ -45,6 +45,31 @@
   box-shadow: 0 0 0 6rpx rgba(74, 144, 226, 0.1);
 }
 
+.time-picker-group {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+}
+
+.date-picker,
+.time-picker {
+  flex: 1;
+  padding: 28rpx 24rpx;
+  border: 2rpx solid #e0e0e0;
+  border-radius: 14rpx;
+  background: #fafafa;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.3s;
+}
+
+.date-picker:active,
+.time-picker:active {
+  background: #f0f0f0;
+  border-color: #4a90e2;
+}
+
 .picker-view {
   width: 100%;
   padding: 28rpx 24rpx;
@@ -62,7 +87,7 @@
 }
 
 .picker-text {
-  font-size: 32rpx;
+  font-size: 30rpx;
   color: #1a1a1a;
   flex: 1;
 }
@@ -72,9 +97,20 @@
 }
 
 .picker-arrow {
-  font-size: 40rpx;
+  font-size: 36rpx;
   color: #999999;
-  margin-left: 16rpx;
+  margin-left: 12rpx;
+}
+
+.time-display {
+  display: block;
+  font-size: 26rpx;
+  color: #4a90e2;
+  margin-top: 12rpx;
+  padding: 12rpx 20rpx;
+  background: rgba(74, 144, 226, 0.08);
+  border-radius: 8rpx;
+  text-align: center;
 }
 
 .subscribe-wrapper {

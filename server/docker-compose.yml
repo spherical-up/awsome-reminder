@@ -10,11 +10,13 @@ services:
         - python:3.9-slim
     container_name: reminder-server
     ports:
-      - "127.0.0.1:5000:5000"  # 只绑定本地，通过 Nginx 访问
+      - "127.0.0.1:5000:5000"  # 本地访问
+      - "192.168.31.100:5000:5000"  # 局域网访问（开发环境）
     env_file:
       - .env
     volumes:
       - ./logs:/var/log/reminder-server
+      - .:/app  # 挂载代码目录，代码更新后无需重新构建
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]

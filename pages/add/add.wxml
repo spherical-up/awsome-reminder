@@ -16,21 +16,38 @@
 
     <view class="input-wrapper">
       <text class="input-label">提醒时间 <text class="optional">(可选)</text></text>
-      <picker 
-        mode="multiSelector" 
-        range="{{timeRange}}" 
-        range-key="label"
-        value="{{timeIndex}}"
-        bindchange="onTimeChange"
-        bindcolumnchange="onTimeColumnChange"
-      >
-        <view class="picker-view">
-          <text class="picker-text {{selectedTime ? '' : 'placeholder'}}">
-            {{selectedTime || '请选择提醒时间'}}
-          </text>
-          <text class="picker-arrow">›</text>
-        </view>
-      </picker>
+      <view class="time-picker-group">
+        <picker 
+          mode="date" 
+          value="{{selectedDate}}"
+          start="{{minDate}}"
+          bindchange="onDateChange"
+        >
+          <view class="picker-view date-picker">
+            <text class="picker-text {{selectedDate ? '' : 'placeholder'}}">
+              {{selectedDate || '选择日期'}}
+            </text>
+            <text class="picker-arrow">›</text>
+          </view>
+        </picker>
+        <picker 
+          mode="multiSelector" 
+          range="{{timeRange}}"
+          value="{{timeIndex}}"
+          bindchange="onTimeChange"
+          bindcolumnchange="onTimeColumnChange"
+        >
+          <view class="picker-view time-picker">
+            <text class="picker-text {{selectedTime ? '' : 'placeholder'}}">
+              {{selectedTime || '选择时间'}}
+            </text>
+            <text class="picker-arrow">›</text>
+          </view>
+        </picker>
+      </view>
+      <text class="time-display" wx:if="{{formattedTime}}">
+        {{formattedTime}}
+      </text>
     </view>
 
     <view class="subscribe-wrapper">

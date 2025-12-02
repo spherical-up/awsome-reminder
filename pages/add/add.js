@@ -5,46 +5,33 @@ Page({
   data: {
     reminderTitle: '',
     enableSubscribe: false,
-    selectedTime: '',
-    reminderTime: null, // 存储时间戳
+    selectedDate: '', // 日期：YYYY-MM-DD
+    selectedTime: '', // 时间显示：HH:mm:ss
+    formattedTime: '', // 格式化显示：2024-01-01 10:30:00
+    reminderTime: null, // 存储时间戳（毫秒）
+    minDate: '', // 最小日期（今天）
     timeRange: [
-      [
-        { label: '今天', value: 0 },
-        { label: '明天', value: 1 },
-        { label: '后天', value: 2 }
-      ],
-      [
-        { label: '00:00', value: 0 },
-        { label: '01:00', value: 1 },
-        { label: '02:00', value: 2 },
-        { label: '03:00', value: 3 },
-        { label: '04:00', value: 4 },
-        { label: '05:00', value: 5 },
-        { label: '06:00', value: 6 },
-        { label: '07:00', value: 7 },
-        { label: '08:00', value: 8 },
-        { label: '09:00', value: 9 },
-        { label: '10:00', value: 10 },
-        { label: '11:00', value: 11 },
-        { label: '12:00', value: 12 },
-        { label: '13:00', value: 13 },
-        { label: '14:00', value: 14 },
-        { label: '15:00', value: 15 },
-        { label: '16:00', value: 16 },
-        { label: '17:00', value: 17 },
-        { label: '18:00', value: 18 },
-        { label: '19:00', value: 19 },
-        { label: '20:00', value: 20 },
-        { label: '21:00', value: 21 },
-        { label: '22:00', value: 22 },
-        { label: '23:00', value: 23 }
-      ]
+      // 小时：00-23
+      Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')),
+      // 分钟：00-59
+      Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')),
+      // 秒：00-59
+      Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
     ],
-    timeIndex: [0, 0]
+    timeIndex: [0, 0, 0] // [小时, 分钟, 秒]
   },
 
   onLoad() {
-    // 页面加载
+    // 设置最小日期为今天
+    const today = new Date()
+    const year = today.getFullYear()
+    const month = String(today.getMonth() + 1).padStart(2, '0')
+    const day = String(today.getDate()).padStart(2, '0')
+    const minDate = `${year}-${month}-${day}`
+    
+    this.setData({
+      minDate: minDate
+    })
   },
 
   // 输入提醒内容
@@ -52,6 +39,15 @@ Page({
     this.setData({
       reminderTitle: e.detail.value
     })
+  },
+
+  // 日期选择器改变
+  onDateChange(e) {
+    const date = e.detail.value // 格式：YYYY-MM-DD
+    this.setData({
+      selectedDate: date
+    })
+    this.updateReminderTime()
   },
 
   // 时间选择器列改变
@@ -63,7 +59,8 @@ Page({
     this.setData({
       timeIndex: timeIndex
     })
-    this.updateSelectedTime()
+    this.updateTimeDisplay()
+    this.updateReminderTime()
   },
 
   // 时间选择器改变
@@ -71,32 +68,68 @@ Page({
     this.setData({
       timeIndex: e.detail.value
     })
-    this.updateSelectedTime()
+    this.updateTimeDisplay()
+    this.updateReminderTime()
   },
 
-  // 更新选中的时间显示
-  updateSelectedTime() {
-    const timeRange = this.data.timeRange
+  // 更新时间显示（HH:mm:ss）
+  updateTimeDisplay() {
     const timeIndex = this.data.timeIndex
+    const hour = this.data.timeRange[0][timeIndex[0]]
+    const minute = this.data.timeRange[1][timeIndex[1]]
+    const second = this.data.timeRange[2][timeIndex[2]]
+    const timeString = `${hour}:${minute}:${second}`
     
-    if (timeRange[0] && timeRange[0][timeIndex[0]] && timeRange[1] && timeRange[1][timeIndex[1]]) {
-      const dayLabel = timeRange[0][timeIndex[0]].label
-      const hourLabel = timeRange[1][timeIndex[1]].label
+    this.setData({
+      selectedTime: timeString
+    })
+  },
+
+  // 更新提醒时间戳和格式化显示
+  updateReminderTime() {
+    const date = this.data.selectedDate
+    const time = this.data.selectedTime
+    
+    if (date && time) {
+      // 组合日期和时间：YYYY-MM-DD HH:mm:ss
+      const dateTimeString = `${date} ${time}`
       
-      // 计算实际时间戳
-      const now = new Date()
-      const day = timeIndex[0]
-      const hour = timeIndex[1]
+      // 转换为时间戳（毫秒）
+      // 注意：小程序中 Date 构造函数需要将 - 替换为 /
+      const targetDate = new Date(dateTimeString.replace(/-/g, '/'))
+      const timestamp = targetDate.getTime()
       
-      const targetDate = new Date(now)
-      targetDate.setDate(now.getDate() + day)
-      targetDate.setHours(hour, 0, 0, 0)
+      // 检查时间是否有效
+      if (isNaN(timestamp)) {
+        console.error('时间格式错误:', dateTimeString)
+        return
+      }
+      
+      // 格式化显示
+      const formatted = this.formatDateTime(targetDate)
       
       this.setData({
-        selectedTime: `${dayLabel} ${hourLabel}`,
-        reminderTime: targetDate.getTime()
+        reminderTime: timestamp,
+        formattedTime: formatted
+      })
+    } else {
+      this.setData({
+        reminderTime: null,
+        formattedTime: ''
       })
     }
+  },
+
+  // 格式化日期时间显示
+  formatDateTime(date) {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    const seconds = String(date.getSeconds()).padStart(2, '0')
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
   },
 
   // 订阅开关改变
@@ -198,7 +231,7 @@ Page({
     const newReminder = {
       id: Date.now(),
       title: title,
-      time: this.data.selectedTime || '',
+      time: this.data.formattedTime || '',
       reminderTime: this.data.reminderTime,
       completed: false,
       enableSubscribe: this.data.enableSubscribe,
@@ -219,7 +252,7 @@ Page({
       
       api.createReminder({
         title: title,
-        time: this.data.selectedTime,
+        time: this.data.formattedTime,
         reminderTime: this.data.reminderTime,
         enableSubscribe: true
       }).then(() => {
