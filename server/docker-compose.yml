@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  reminder-server:
+    build: .
+    container_name: reminder-server
+    ports:
+      - "5000:5000"
+    environment:
+      - WX_APPID=${WX_APPID}
+      - WX_APPSECRET=${WX_APPSECRET}
+      - WX_TEMPLATE_ID=${WX_TEMPLATE_ID}
+      - FLASK_ENV=production
+    volumes:
+      - ./logs:/var/log/reminder-server
+      - ./.env:/app/.env
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+

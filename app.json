@@ -1,0 +1,16 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/add/add"
+  ],
+  "window": {
+    "navigationBarTitleText": "哒哒提醒",
+    "navigationBarBackgroundColor": "#87CEFA",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#ffffff",
+    "backgroundTextStyle": "light"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}
+

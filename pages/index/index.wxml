@@ -1,0 +1,119 @@
+<!--index.wxml-->
+<view class="container">
+  <!-- 头部标题区域 -->
+  <view class="header">
+    <view class="header-content">
+      <view class="title-wrapper">
+        <text class="title-icon">✨</text>
+        <text class="title">哒哒提醒</text>
+      </view>
+      <view class="stats-wrapper">
+        <view class="stat-item">
+          <text class="stat-number">{{totalCount}}</text>
+          <text class="stat-label">总计</text>
+        </view>
+        <view class="stat-divider"></view>
+        <view class="stat-item">
+          <text class="stat-number highlight">{{completedCount}}</text>
+          <text class="stat-label">已完成</text>
+        </view>
+        <view class="stat-divider"></view>
+        <view class="stat-item">
+          <text class="stat-number">{{totalCount - completedCount}}</text>
+          <text class="stat-label">待完成</text>
+        </view>
+      </view>
+      <view class="progress-bar">
+        <view class="progress-fill" style="width: {{totalCount > 0 ? (completedCount / totalCount * 100) : 0}}%"></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 提醒列表 -->
+  <view class="reminder-list">
+    <view 
+      class="reminder-item {{item.completed ? 'completed' : ''}}" 
+      wx:for="{{reminders}}" 
+      wx:key="id"
+    >
+      <view class="reminder-left">
+        <view class="checkbox-wrapper" bindtap="toggleReminder" data-index="{{index}}">
+          <view class="checkbox {{item.completed ? 'checked' : ''}}">
+            <text class="check-icon" wx:if="{{item.completed}}">✓</text>
+          </view>
+        </view>
+        <view class="reminder-text" bindtap="toggleReminder" data-index="{{index}}">
+          <text class="reminder-title">{{item.title}}</text>
+          <view class="reminder-meta" wx:if="{{item.time}}">
+            <text class="time-icon">🕐</text>
+            <text class="reminder-time">{{item.time}}</text>
+          </view>
+        </view>
+      </view>
+      <view class="delete-btn" bindtap="deleteReminder" data-index="{{index}}">
+        <text class="delete-icon">🗑️</text>
+      </view>
+    </view>
+    
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{reminders.length === 0}}">
+      <view class="empty-illustration">
+        <text class="empty-icon">📝</text>
+        <view class="empty-dots">
+          <view class="dot"></view>
+          <view class="dot"></view>
+          <view class="dot"></view>
+        </view>
+      </view>
+      <text class="empty-title">还没有提醒事项</text>
+      <text class="empty-text">点击下方按钮，开始记录你的提醒吧</text>
+    </view>
+  </view>
+
+  <!-- 添加提醒按钮 -->
+  <view class="add-button" bindtap="showAddModal">
+    <text class="add-icon">+</text>
+  </view>
+</view>
+
+<!-- 添加提醒弹窗 -->
+<view class="modal {{showModal ? 'show' : ''}}" bindtap="hideAddModal">
+  <view class="modal-content" catchtap="stopPropagation">
+    <view class="modal-header">
+      <view class="modal-title-wrapper">
+        <text class="modal-title">📝 添加新提醒</text>
+      </view>
+      <view class="modal-close" bindtap="hideAddModal">
+        <text>×</text>
+      </view>
+    </view>
+    <view class="modal-body">
+      <view class="input-wrapper">
+        <text class="input-label">提醒内容</text>
+        <input 
+          class="input-field" 
+          placeholder="请输入提醒内容" 
+          value="{{newReminderTitle}}"
+          bindinput="onTitleInput"
+          maxlength="50"
+          focus="{{inputFocus}}"
+        />
+      </view>
+      <view class="input-wrapper">
+        <text class="input-label">提醒时间 <text class="optional">(可选)</text></text>
+        <input 
+          class="input-field time-input" 
+          placeholder="例如：明天 10:00" 
+          value="{{newReminderTime}}"
+          bindinput="onTimeInput"
+          maxlength="20"
+        />
+      </view>
+    </view>
+    <view class="modal-footer">
+      <button class="cancel-btn" bindtap="hideAddModal">取消</button>
+      <button class="confirm-btn" bindtap="addReminder">确定</button>
+    </view>
+  </view>
+</view>
+

@@ -1,0 +1,53 @@
+<!--add.wxml-->
+<view class="container">
+  <view class="form-wrapper">
+    <view class="input-wrapper">
+      <text class="input-label">提醒内容</text>
+      <textarea 
+        class="textarea-field" 
+        placeholder="请输入提醒内容" 
+        value="{{reminderTitle}}"
+        bindinput="onTitleInput"
+        maxlength="200"
+        auto-focus="{{true}}"
+        show-confirm-bar="{{false}}"
+      />
+    </view>
+
+    <view class="input-wrapper">
+      <text class="input-label">提醒时间 <text class="optional">(可选)</text></text>
+      <picker 
+        mode="multiSelector" 
+        range="{{timeRange}}" 
+        range-key="label"
+        value="{{timeIndex}}"
+        bindchange="onTimeChange"
+        bindcolumnchange="onTimeColumnChange"
+      >
+        <view class="picker-view">
+          <text class="picker-text {{selectedTime ? '' : 'placeholder'}}">
+            {{selectedTime || '请选择提醒时间'}}
+          </text>
+          <text class="picker-arrow">›</text>
+        </view>
+      </picker>
+    </view>
+
+    <view class="subscribe-wrapper">
+      <view class="subscribe-item">
+        <text class="subscribe-label">开启消息提醒</text>
+        <switch 
+          checked="{{enableSubscribe}}" 
+          bindchange="onSubscribeChange"
+          color="#4a90e2"
+        />
+      </view>
+      <text class="subscribe-tip">开启后，提醒时间到达时会收到微信消息通知</text>
+    </view>
+    
+    <view class="button-wrapper">
+      <button class="save-btn" bindtap="saveReminder">保存</button>
+    </view>
+  </view>
+</view>
+
