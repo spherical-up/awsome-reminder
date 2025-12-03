@@ -170,9 +170,14 @@ def schedule_reminder(reminder):
                 logger.info(f'开始发送提醒: ID={reminder["id"]}, openid={reminder["openid"]}')
                 
                 # 构建模板数据
+                # 模板字段：事件名(thing1)、事件时间(time2)、事项(thing3)、时间(time6)、备注(thing5)
+                reminder_time = reminder.get('time', '')
                 template_data = {
-                    'thing1': {'value': reminder['title'][:20]},  # 提醒内容，最多20字
-                    'time2': {'value': reminder.get('time', '')}  # 提醒时间
+                    'thing1': {'value': reminder['title'][:20]},  # 事件名
+                    'time2': {'value': reminder_time},  # 事件时间
+                    'thing3': {'value': reminder['title'][:20]},  # 事项
+                    'time6': {'value': reminder_time},  # 时间
+                    'thing5': {'value': '来自哒哒提醒'[:20]}  # 备注
                 }
                 
                 logger.info(f'模板数据: {template_data}')
@@ -484,9 +489,14 @@ def manual_send_reminder(reminder_id):
         logger.info(f'手动发送提醒: ID={reminder_id}')
         
         # 构建模板数据
+        # 模板字段：事件名(thing1)、事件时间(time2)、事项(thing3)、时间(time6)、备注(thing5)
+        reminder_time = reminder.get('time', '')
         template_data = {
-            'thing1': {'value': reminder['title'][:20]},
-            'time2': {'value': reminder.get('time', '')}
+            'thing1': {'value': reminder['title'][:20]},  # 事件名
+            'time2': {'value': reminder_time},  # 事件时间
+            'thing3': {'value': reminder['title'][:20]},  # 事项
+            'time6': {'value': reminder_time},  # 时间
+            'thing5': {'value': '来自哒哒提醒'[:20]}  # 备注
         }
         
         logger.info(f'模板数据: {template_data}')
