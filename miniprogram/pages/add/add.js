@@ -1,8 +1,12 @@
 // add.js
 const subscribeMessage = require('../../utils/subscribeMessage.js')
+const api = require('../../utils/api.js')
 
 Page({
   data: {
+    reminderId: null, // 编辑模式下的提醒ID
+    isEditMode: false, // 是否为编辑模式
+    originalEnableSubscribe: false, // 编辑模式下原始的订阅状态
     thing1: '', // 事项主题
     thing4: '', // 事项描述
     enableSubscribe: false,
@@ -18,7 +22,7 @@ Page({
     }
   },
 
-  onLoad() {
+  async onLoad(options) {
     // 设置最小日期为今天
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -32,6 +36,70 @@ Page({
       minDateTimestamp: today.getTime(),
       dateTimePickerValue: today.getTime()
     })
+
+    // 检查是否是编辑模式
+    if (options.id) {
+      const reminderId = parseInt(options.id)
+      this.setData({
+        reminderId: reminderId,
+        isEditMode: true
+      })
+      
+      // 设置页面标题
+      wx.setNavigationBarTitle({
+        title: '编辑提醒'
+      })
+      
+      // 加载提醒详情
+      await this.loadReminderDetail(reminderId)
+    } else {
+      // 设置页面标题
+      wx.setNavigationBarTitle({
+        title: '添加提醒'
+      })
+    }
+  },
+
+  // 加载提醒详情
+  async loadReminderDetail(reminderId) {
+    try {
+      wx.showLoading({
+        title: '加载中...',
+        mask: true
+      })
+      
+      const reminder = await api.getReminder(reminderId)
+      
+      // 回填数据
+      const reminderTime = reminder.reminderTime || Date.now()
+      const date = new Date(reminderTime)
+      const formatted = this.formatDateTime(date)
+      const enableSubscribe = reminder.enableSubscribe || false
+      
+      this.setData({
+        thing1: reminder.thing1 || reminder.title || '',
+        thing4: reminder.thing4 || '',
+        formattedTime: formatted,
+        reminderTime: reminderTime,
+        enableSubscribe: enableSubscribe,
+        originalEnableSubscribe: enableSubscribe, // 保存原始的订阅状态
+        dateTimePickerValue: reminderTime
+      })
+      
+      wx.hideLoading()
+    } catch (err) {
+      console.error('加载提醒详情失败', err)
+      wx.hideLoading()
+      wx.showToast({
+        title: err.message || '加载失败',
+        icon: 'none',
+        duration: 2000
+      })
+      // 加载失败，返回上一页
+      setTimeout(() => {
+        wx.navigateBack()
+      }, 2000)
+    }
   },
 
   // 输入事项主题
@@ -111,9 +179,22 @@ Page({
       enableSubscribe: enable
     })
 
-    // 如果开启订阅，请求订阅消息授权
+    // 授权逻辑：
+    // 1. 新建模式：开启订阅时立即请求授权
+    // 2. 编辑模式：只有从"未开启"变为"开启"时才请求授权
+    //    如果原本就开启了订阅，用户切换开关时不需要重新授权
     if (enable) {
-      this.requestSubscribe()
+      if (!this.data.isEditMode) {
+        // 新建模式：开启订阅时立即授权
+        this.requestSubscribe()
+      } else {
+        // 编辑模式：只有从未开启变为开启时才授权
+        if (!this.data.originalEnableSubscribe) {
+          this.requestSubscribe()
+        }
+        // 如果原本就开启了订阅，用户切换开关时不需要授权
+        // 授权会在保存时统一处理
+      }
     }
   },
 
@@ -191,68 +272,62 @@ Page({
       return
     }
 
-    // 如果开启了订阅，确保已授权
-    if (this.data.enableSubscribe) {
-      // 检查是否已授权，如果没有则请求授权
+    // 处理订阅授权逻辑
+    // 1. 新建模式：如果开启订阅，需要授权
+    // 2. 编辑模式：只有从"未开启"变为"开启"时才需要授权
+    //    如果原本就开启了订阅，编辑时保持开启，不需要重新授权
+    const needAuth = this.data.isEditMode 
+      ? (!this.data.originalEnableSubscribe && this.data.enableSubscribe) // 编辑模式：从未开启变为开启
+      : this.data.enableSubscribe // 新建模式：开启订阅就需要授权
+    
+    if (needAuth) {
       await this.requestSubscribe()
     }
 
-    // 获取现有提醒列表
-    const reminders = wx.getStorageSync('reminders') || []
-    
-    // 创建新提醒
-    const newReminder = {
-      id: Date.now(),
+    const reminderData = {
       title: thing1, // 保留 title 字段用于兼容
       thing1: thing1, // 事项主题
       thing4: thing4, // 事项描述
-      time: this.data.formattedTime, // 事项时间（必填）
-      reminderTime: this.data.reminderTime, // 事项时间戳（必填）
-      completed: false,
-      enableSubscribe: this.data.enableSubscribe,
-      createTime: new Date().toLocaleString('zh-CN')
-    }
-
-    // 添加到列表开头
-    reminders.unshift(newReminder)
-    
-    // 保存到本地存储
-    wx.setStorageSync('reminders', reminders)
-
-    // 如果开启了订阅，调用服务端API（时间现在是必填的）
-    if (this.data.enableSubscribe) {
-      // 调用服务端API，将提醒信息发送到服务器
-      // 服务端会在提醒时间到达时发送订阅消息
-      const api = require('../../utils/api.js')
-      
-      api.createReminder({
-        title: thing1, // 保留 title 字段用于兼容
-        thing1: thing1, // 事项主题
-        thing4: thing4, // 事项描述
-        time: this.data.formattedTime, // 事项时间
-        reminderTime: this.data.reminderTime,
-        enableSubscribe: true
-      }).then(() => {
-        console.log('提醒已保存到服务端，将在指定时间发送订阅消息')
-      }).catch((err) => {
-        console.error('保存到服务端失败', err)
-        // 即使服务端保存失败，本地也保存了，不影响使用
-      })
+      time: this.data.formattedTime, // 事项时间
+      reminderTime: this.data.reminderTime,
+      enableSubscribe: this.data.enableSubscribe
     }
     
-    // 显示成功提示
-    wx.showToast({
-      title: '添加成功',
-      icon: 'success',
-      duration: 1500
-    })
+    try {
+      if (this.data.isEditMode && this.data.reminderId) {
+        // 编辑模式：更新提醒
+        await api.updateReminder(this.data.reminderId, reminderData)
+        
+        wx.showToast({
+          title: '更新成功',
+          icon: 'success',
+          duration: 1500
+        })
+      } else {
+        // 新建模式：创建提醒
+        await api.createReminder(reminderData)
+        
+        wx.showToast({
+          title: '添加成功',
+          icon: 'success',
+          duration: 1500
+        })
+      }
 
-    // 延迟返回上一页，让用户看到成功提示
-    setTimeout(() => {
-      wx.navigateBack({
-        delta: 1
+      // 延迟返回上一页，让用户看到成功提示
+      setTimeout(() => {
+        wx.navigateBack({
+          delta: 1
+        })
+      }, 1500)
+    } catch (err) {
+      console.error('保存提醒失败', err)
+      wx.showToast({
+        title: err.message || '保存失败，请重试',
+        icon: 'none',
+        duration: 2000
       })
-    }, 1500)
+    }
   }
 })
 

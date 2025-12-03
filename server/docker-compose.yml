@@ -11,7 +11,7 @@ services:
     container_name: reminder-server
     ports:
       - "127.0.0.1:5000:5000"  # 本地访问
-      # - "192.168.31.100:5000:5000"  # 局域网访问（开发环境）
+      # - "10.0.1.130:5000:5000"  # 局域网访问（开发环境）
     env_file:
       - .env
     volumes:

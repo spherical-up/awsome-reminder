@@ -1,5 +1,6 @@
 // index.js
 const app = getApp()
+const api = require('../../utils/api.js')
 
 Page({
   data: {
@@ -9,7 +10,8 @@ Page({
     newReminderTime: '',
     inputFocus: false,
     totalCount: 0,
-    completedCount: 0
+    completedCount: 0,
+    loading: false
   },
 
   onLoad() {
@@ -21,21 +23,49 @@ Page({
   },
 
   // 加载提醒列表
-  loadReminders() {
-    const reminders = wx.getStorageSync('reminders') || []
-    const completedCount = reminders.filter(r => r.completed).length
-    this.setData({
-      reminders: reminders,
-      totalCount: reminders.length,
-      completedCount: completedCount
-    })
-    app.globalData.reminders = reminders
+  async loadReminders() {
+    this.setData({ loading: true })
+    try {
+      const reminders = await api.getReminders()
+      const completedCount = reminders.filter(r => r.completed).length
+      this.setData({
+        reminders: reminders,
+        totalCount: reminders.length,
+        completedCount: completedCount,
+        loading: false
+      })
+      app.globalData.reminders = reminders
+    } catch (err) {
+      console.error('加载提醒列表失败', err)
+      wx.showToast({
+        title: err.message || '加载失败',
+        icon: 'none',
+        duration: 2000
+      })
+      this.setData({ loading: false })
+    }
   },
 
   // 跳转到添加页面
   showAddModal() {
     wx.navigateTo({
       url: '/pages/add/add'
+    })
+  },
+
+  // 编辑提醒（跳转到编辑页面）
+  editReminder(e) {
+    const reminder = e.currentTarget.dataset.reminder
+    if (!reminder || !reminder.id) {
+      wx.showToast({
+        title: '提醒信息错误',
+        icon: 'none'
+      })
+      return
+    }
+    
+    wx.navigateTo({
+      url: `/pages/add/add?id=${reminder.id}`
     })
   },
 
@@ -70,74 +100,97 @@ Page({
     })
   },
 
-  // 添加提醒
+  // 添加提醒（已废弃，现在通过 add 页面添加）
   addReminder() {
-    const title = this.data.newReminderTitle.trim()
-    if (!title) {
-      wx.showToast({
-        title: '请输入提醒内容',
-        icon: 'none'
-      })
-      return
-    }
-
-    const reminders = this.data.reminders
-    const newReminder = {
-      id: Date.now(),
-      title: title,
-      time: this.data.newReminderTime.trim() || '',
-      completed: false,
-      createTime: new Date().toLocaleString('zh-CN')
-    }
-
-    reminders.unshift(newReminder)
-    wx.setStorageSync('reminders', reminders)
-    
-    this.loadReminders()
-    this.hideAddModal()
-    
+    // 此方法已废弃，添加提醒现在通过 add 页面完成
     wx.showToast({
-      title: '添加成功',
-      icon: 'success'
+      title: '请使用添加页面',
+      icon: 'none'
     })
   },
 
   // 切换提醒完成状态
-  toggleReminder(e) {
-    const index = e.currentTarget.dataset.index
-    const reminders = this.data.reminders
-    reminders[index].completed = !reminders[index].completed
+  async toggleReminder(e) {
+    const reminder = e.currentTarget.dataset.reminder
+    if (!reminder || !reminder.id) {
+      wx.showToast({
+        title: '提醒信息错误',
+        icon: 'none'
+      })
+      return
+    }
     
-    wx.setStorageSync('reminders', reminders)
-    this.loadReminders()
+    const newCompleted = !reminder.completed
     
-    const status = reminders[index].completed ? '已完成' : '未完成'
-    wx.showToast({
-      title: status,
-      icon: 'success',
-      duration: 1000
-    })
+    try {
+      await api.updateReminderComplete(reminder.id, newCompleted)
+      
+      // 更新本地数据
+      const reminders = this.data.reminders.map(r => {
+        if (r.id === reminder.id) {
+          return { ...r, completed: newCompleted }
+        }
+        return r
+      })
+      
+      const completedCount = reminders.filter(r => r.completed).length
+      this.setData({
+        reminders: reminders,
+        completedCount: completedCount
+      })
+      
+      const status = newCompleted ? '已完成' : '未完成'
+      wx.showToast({
+        title: status,
+        icon: 'success',
+        duration: 1000
+      })
+    } catch (err) {
+      console.error('更新提醒状态失败', err)
+      wx.showToast({
+        title: err.message || '更新失败',
+        icon: 'none',
+        duration: 2000
+      })
+    }
   },
 
   // 删除提醒
   deleteReminder(e) {
-    const index = e.currentTarget.dataset.index
+    const reminder = e.currentTarget.dataset.reminder
+    if (!reminder || !reminder.id) {
+      wx.showToast({
+        title: '提醒信息错误',
+        icon: 'none'
+      })
+      return
+    }
+    
     const that = this
     
     wx.showModal({
       title: '确认删除',
       content: '确定要删除这条提醒吗？',
-      success(res) {
+      success: async function(res) {
         if (res.confirm) {
-          const reminders = that.data.reminders
-          reminders.splice(index, 1)
-          wx.setStorageSync('reminders', reminders)
-          that.loadReminders()
-          
-          wx.showToast({
-            title: '删除成功',
-            icon: 'success'
-          })
+          try {
+            await api.deleteReminder(reminder.id)
+            
+            // 重新加载列表
+            await that.loadReminders()
+            
+            wx.showToast({
+              title: '删除成功',
+              icon: 'success'
+            })
+          } catch (err) {
+            console.error('删除提醒失败', err)
+            wx.showToast({
+              title: err.message || '删除失败',
+              icon: 'none',
+              duration: 2000
+            })
+          }
         }
       }
     })

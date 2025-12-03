@@ -4,7 +4,7 @@
     "pages/add/add"
   ],
   "window": {
-    "navigationBarTitleText": "哒哒提醒",
+    "navigationBarTitleText": "松鼠小记",
     "navigationBarBackgroundColor": "#87CEFA",
     "navigationBarTextStyle": "white",
     "backgroundColor": "#ffffff",

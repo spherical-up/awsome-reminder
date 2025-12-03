@@ -37,20 +37,20 @@
       wx:key="id"
     >
       <view class="reminder-left">
-        <view class="checkbox-wrapper" bindtap="toggleReminder" data-index="{{index}}">
+        <view class="checkbox-wrapper" bindtap="toggleReminder" data-reminder="{{item}}">
           <view class="checkbox {{item.completed ? 'checked' : ''}}">
             <text class="check-icon" wx:if="{{item.completed}}">✓</text>
           </view>
         </view>
-        <view class="reminder-text" bindtap="toggleReminder" data-index="{{index}}">
-          <text class="reminder-title">{{item.title}}</text>
+        <view class="reminder-text" bindtap="editReminder" data-reminder="{{item}}">
+          <text class="reminder-title">{{item.thing1 || item.title}}</text>
           <view class="reminder-meta" wx:if="{{item.time}}">
             <text class="time-icon">🕐</text>
             <text class="reminder-time">{{item.time}}</text>
           </view>
         </view>
       </view>
-      <view class="delete-btn" bindtap="deleteReminder" data-index="{{index}}">
+      <view class="delete-btn" bindtap="deleteReminder" data-reminder="{{item}}">
         <text class="delete-icon">🗑️</text>
       </view>
     </view>

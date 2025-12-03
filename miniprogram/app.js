@@ -1,8 +1,7 @@
 App({
   onLaunch() {
-    // 初始化提醒数据
-    const reminders = wx.getStorageSync('reminders') || []
-    this.globalData.reminders = reminders
+    // 不再使用本地存储，数据从服务端获取
+    this.globalData.reminders = []
   },
   globalData: {
     reminders: []

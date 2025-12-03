@@ -4,12 +4,10 @@
 // 配置服务端地址（开发环境）
 // 注意：微信开发者工具不支持 localhost，需要使用本地 IP
 // 获取本地 IP: ifconfig | grep "inet " | grep -v 127.0.0.1
-// const API_BASE_URL = 'http://192.168.31.100:5000/api'
-// 如果本地 IP 不行，可以尝试 127.0.0.1（但通常不行）
-// const API_BASE_URL = 'http://127.0.0.1:5000/api'
+const API_BASE_URL = 'http://10.0.1.130:5001/api'
 
 // 生产环境配置
-const API_BASE_URL = 'https://www.6ht6.com/api'
+// const API_BASE_URL = 'https://www.6ht6.com/api'
 
 /**
  * 获取用户 openid
@@ -102,20 +100,30 @@ function getReminders() {
     try {
       const openid = await getUserOpenid()
       
+      // GET 请求需要将参数放在 URL 中
+      const url = `${API_BASE_URL}/reminders?openid=${encodeURIComponent(openid)}`
+      
       wx.request({
-        url: `${API_BASE_URL}/reminders`,
+        url: url,
         method: 'GET',
-        data: {
-          openid: openid
+        header: {
+          'Content-Type': 'application/json'
         },
         success: (res) => {
-          if (res.data.errcode === 0) {
-            resolve(res.data.data || [])
+          if (res.statusCode === 200) {
+            if (res.data.errcode === 0) {
+              resolve(res.data.data || [])
+            } else {
+              reject(new Error(res.data.errmsg || '获取提醒列表失败'))
+            }
           } else {
-            reject(new Error(res.data.errmsg || '获取提醒列表失败'))
+            reject(new Error(`请求失败: ${res.statusCode}`))
           }
         },
-        fail: reject
+        fail: (err) => {
+          console.error('请求失败:', err)
+          reject(new Error(err.errMsg || '网络请求失败'))
+        }
       })
     } catch (error) {
       reject(error)
@@ -143,11 +151,87 @@ function deleteReminder(reminderId) {
   })
 }
 
+/**
+ * 获取提醒详情
+ */
+function getReminder(reminderId) {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${API_BASE_URL}/reminder/${reminderId}`,
+      method: 'GET',
+      success: (res) => {
+        if (res.data.errcode === 0) {
+          resolve(res.data.data)
+        } else {
+          reject(new Error(res.data.errmsg || '获取提醒详情失败'))
+        }
+      },
+      fail: reject
+    })
+  })
+}
+
+/**
+ * 更新提醒
+ */
+function updateReminder(reminderId, reminderData) {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${API_BASE_URL}/reminder/${reminderId}`,
+      method: 'PUT',
+      header: {
+        'Content-Type': 'application/json'
+      },
+      data: {
+        thing1: reminderData.thing1 || reminderData.title,
+        thing4: reminderData.thing4 || '',
+        time: reminderData.time || '',
+        reminderTime: reminderData.reminderTime,
+        enableSubscribe: reminderData.enableSubscribe || false
+      },
+      success: (res) => {
+        if (res.data.errcode === 0) {
+          resolve(res.data)
+        } else {
+          reject(new Error(res.data.errmsg || '更新提醒失败'))
+        }
+      },
+      fail: reject
+    })
+  })
+}
+
+/**
+ * 更新提醒完成状态
+ */
+function updateReminderComplete(reminderId, completed) {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${API_BASE_URL}/reminder/${reminderId}/complete`,
+      method: 'PUT',
+      data: {
+        completed: completed
+      },
+      success: (res) => {
+        if (res.data.errcode === 0) {
+          resolve(res.data)
+        } else {
+          reject(new Error(res.data.errmsg || '更新提醒状态失败'))
+        }
+      },
+      fail: reject
+    })
+  })
+}
+
 module.exports = {
   API_BASE_URL,
   getUserOpenid,
   createReminder,
   getReminders,
-  deleteReminder
+  getReminder,
+  updateReminder,
+  deleteReminder,
+  updateReminderComplete
 }
 

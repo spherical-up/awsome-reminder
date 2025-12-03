@@ -58,7 +58,7 @@ template_data = {
 template_data = {
     'thing1': {'value': reminder['title'][:20]},
     'time2': {'value': reminder.get('time', '')},
-    'thing3': {'value': '来自哒哒提醒'}  # 备注信息
+    'thing3': {'value': '来自松鼠小记'}  # 备注信息
 }
 ```
 
