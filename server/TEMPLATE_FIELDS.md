@@ -12,10 +12,10 @@ errmsg: argument invalid! data.thing3.value is empty
 
 ## 当前模板字段
 
-根据错误信息，你的模板需要以下字段：
-- `thing1` - 提醒内容
-- `time2` - 提醒时间
-- `thing3` - 第三个字段（需要配置）
+根据模板配置，当前模板需要以下字段：
+- `thing1` - 事项主题
+- `time2` - 事项时间
+- `thing4` - 事项描述
 
 ## 查看模板字段
 
@@ -23,16 +23,16 @@ errmsg: argument invalid! data.thing3.value is empty
 
 1. 登录 [微信公众平台](https://mp.weixin.qq.com/)
 2. 进入 **功能** -> **订阅消息**
-3. 找到你的模板（模板ID: `_qZfC75otflYg8nc1suRZK27Ke-mzc_sh3Vtpv8tr2w`）
+3. 找到你的模板（模板ID: `is4mEq0nlt5fJRn-Pflnr-wJxoCKOz9qty857QmH7Bw`）
 4. 查看模板详情，确认需要哪些字段
 
 ### 方法 2：查看模板示例
 
-模板示例可能类似：
+当前模板格式：
 ```
-提醒内容：{{thing1.DATA}}
-提醒时间：{{time2.DATA}}
-备注信息：{{thing3.DATA}}
+事项主题：{{thing1.DATA}}
+事项时间：{{time2.DATA}}
+事项描述：{{thing4.DATA}}
 ```
 
 ## 配置模板字段
@@ -43,9 +43,9 @@ errmsg: argument invalid! data.thing3.value is empty
 
 ```python
 template_data = {
-    'thing1': {'value': reminder['title'][:20]},  # 提醒内容
-    'time2': {'value': reminder.get('time', '')},  # 提醒时间
-    'thing3': {'value': reminder.get('title', '提醒')[:20]}  # thing3 字段
+    'thing1': {'value': reminder['title'][:20]},  # 事项主题
+    'time2': {'value': reminder.get('time', '')},  # 事项时间
+    'thing4': {'value': reminder['title'][:20]}  # 事项描述
 }
 ```
 
@@ -91,9 +91,9 @@ template_data = {
 
 ```python
 template_data = {
-    'thing1': {'value': '提醒内容'[:20]},
-    'time2': {'value': '2024-12-03 10:00:00'},
-    'thing3': {'value': '备注信息'[:20]}  # 可选
+    'thing1': {'value': '事项主题'[:20]},  # 事项主题
+    'time2': {'value': '2024-12-03 10:00:00'},  # 事项时间
+    'thing4': {'value': '事项描述'[:20]}  # 事项描述
 }
 ```
 
@@ -116,8 +116,13 @@ template_data = {
 ### 步骤 2：修改代码
 
 编辑 `server/app.py`，找到 `template_data` 的构建部分（两处）：
-1. `schedule_reminder` 函数中的 `send_reminder` 函数内（约第 173 行）
-2. `manual_send_reminder` 函数内（约第 487 行）
+1. `schedule_reminder` 函数中的 `send_reminder` 函数内（约第 172 行）
+2. `manual_send_reminder` 函数内（约第 492 行）
+
+当前已配置为：
+- `thing1`: 事项主题（提醒标题）
+- `time2`: 事项时间（提醒时间）
+- `thing4`: 事项描述（提醒标题）
 
 ### 步骤 3：重启服务
 

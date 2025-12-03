@@ -3,122 +3,93 @@ const subscribeMessage = require('../../utils/subscribeMessage.js')
 
 Page({
   data: {
-    reminderTitle: '',
+    thing1: '', // 事项主题
+    thing4: '', // 事项描述
     enableSubscribe: false,
-    selectedDate: '', // 日期：YYYY-MM-DD
-    selectedTime: '', // 时间显示：HH:mm:ss
     formattedTime: '', // 格式化显示：2024-01-01 10:30:00
     reminderTime: null, // 存储时间戳（毫秒）
     minDate: '', // 最小日期（今天）
-    timeRange: [
-      // 小时：00-23
-      Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')),
-      // 分钟：00-59
-      Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')),
-      // 秒：00-59
-      Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
-    ],
-    timeIndex: [0, 0, 0] // [小时, 分钟, 秒]
+    minDateTimestamp: 0, // 最小日期时间戳
+    showDateTimePicker: false, // 显示日期时间选择器
+    dateTimePickerValue: Date.now(), // 日期时间选择器值（时间戳）
+    textareaAutosize: {
+      minHeight: 160, // 最小高度 160rpx (约 80px)
+      maxHeight: 300  // 最大高度 300rpx (约 150px)
+    }
   },
 
   onLoad() {
     // 设置最小日期为今天
     const today = new Date()
+    today.setHours(0, 0, 0, 0)
     const year = today.getFullYear()
     const month = String(today.getMonth() + 1).padStart(2, '0')
     const day = String(today.getDate()).padStart(2, '0')
     const minDate = `${year}-${month}-${day}`
     
     this.setData({
-      minDate: minDate
+      minDate: minDate,
+      minDateTimestamp: today.getTime(),
+      dateTimePickerValue: today.getTime()
     })
   },
 
-  // 输入提醒内容
-  onTitleInput(e) {
+  // 输入事项主题
+  onThing1Input(e) {
+    // van-field 的 input 事件直接返回 value
+    const value = typeof e.detail === 'string' ? e.detail : (e.detail?.value || e.detail)
     this.setData({
-      reminderTitle: e.detail.value
+      thing1: value
     })
   },
 
-  // 日期选择器改变
-  onDateChange(e) {
-    const date = e.detail.value // 格式：YYYY-MM-DD
+  // 输入事项描述
+  onThing4Input(e) {
+    // van-field 的 input 事件直接返回 value
+    const value = typeof e.detail === 'string' ? e.detail : (e.detail?.value || e.detail)
     this.setData({
-      selectedDate: date
+      thing4: value
     })
-    this.updateReminderTime()
   },
 
-  // 时间选择器列改变
-  onTimeColumnChange(e) {
-    const column = e.detail.column
-    const value = e.detail.value
-    const timeIndex = this.data.timeIndex
-    timeIndex[column] = value
+  // 显示日期时间选择器
+  showDateTimePicker() {
+    // 如果有已选时间，使用已选时间；否则使用当前时间
+    const currentValue = this.data.reminderTime || Date.now()
     this.setData({
-      timeIndex: timeIndex
+      showDateTimePicker: true,
+      dateTimePickerValue: currentValue
     })
-    this.updateTimeDisplay()
-    this.updateReminderTime()
   },
 
-  // 时间选择器改变
-  onTimeChange(e) {
+  // 隐藏日期时间选择器
+  hideDateTimePicker() {
     this.setData({
-      timeIndex: e.detail.value
+      showDateTimePicker: false
     })
-    this.updateTimeDisplay()
-    this.updateReminderTime()
   },
 
-  // 更新时间显示（HH:mm:ss）
-  updateTimeDisplay() {
-    const timeIndex = this.data.timeIndex
-    const hour = this.data.timeRange[0][timeIndex[0]]
-    const minute = this.data.timeRange[1][timeIndex[1]]
-    const second = this.data.timeRange[2][timeIndex[2]]
-    const timeString = `${hour}:${minute}:${second}`
+  // 日期时间选择确认
+  onDateTimeConfirm(e) {
+    const timestamp = typeof e.detail === 'number' ? e.detail : (e.detail?.value || Date.now())
+    const date = new Date(timestamp)
     
-    this.setData({
-      selectedTime: timeString
-    })
-  },
-
-  // 更新提醒时间戳和格式化显示
-  updateReminderTime() {
-    const date = this.data.selectedDate
-    const time = this.data.selectedTime
-    
-    if (date && time) {
-      // 组合日期和时间：YYYY-MM-DD HH:mm:ss
-      const dateTimeString = `${date} ${time}`
-      
-      // 转换为时间戳（毫秒）
-      // 注意：小程序中 Date 构造函数需要将 - 替换为 /
-      const targetDate = new Date(dateTimeString.replace(/-/g, '/'))
-      const timestamp = targetDate.getTime()
-      
-      // 检查时间是否有效
-      if (isNaN(timestamp)) {
-        console.error('时间格式错误:', dateTimeString)
-        return
-      }
-      
-      // 格式化显示
-      const formatted = this.formatDateTime(targetDate)
-      
-      this.setData({
-        reminderTime: timestamp,
-        formattedTime: formatted
-      })
-    } else {
-      this.setData({
-        reminderTime: null,
-        formattedTime: ''
-      })
+    // 检查时间是否有效
+    if (isNaN(date.getTime())) {
+      console.error('日期时间无效:', timestamp)
+      return
     }
+    
+    // 格式化显示
+    const formatted = this.formatDateTime(date)
+    
+    this.setData({
+      reminderTime: timestamp,
+      formattedTime: formatted,
+      showDateTimePicker: false
+    })
   },
+
 
   // 格式化日期时间显示
   formatDateTime(date) {
@@ -134,7 +105,8 @@ Page({
 
   // 订阅开关改变
   onSubscribeChange(e) {
-    const enable = e.detail.value
+    // van-switch 的 change 事件返回 checked 值
+    const enable = e.detail
     this.setData({
       enableSubscribe: enable
     })
@@ -150,7 +122,7 @@ Page({
     try {
       // 订阅消息模板ID
       const tmplIds = [
-        '_qZfC75otflYg8nc1suRZK27Ke-mzc_sh3Vtpv8tr2w'
+        'is4mEq0nlt5fJRn-Pflnr-wJxoCKOz9qty857QmH7Bw'
       ]
 
       const res = await subscribeMessage.requestSubscribeMessage(tmplIds)
@@ -186,42 +158,43 @@ Page({
 
   // 保存提醒
   async saveReminder() {
-    const title = this.data.reminderTitle.trim()
+    const thing1 = this.data.thing1.trim()
+    const thing4 = this.data.thing4.trim()
     
-    if (!title) {
+    // 验证事项主题
+    if (!thing1) {
       wx.showToast({
-        title: '请输入提醒内容',
+        title: '请输入事项主题',
         icon: 'none',
         duration: 2000
       })
       return
     }
 
-    // 如果开启了订阅但没有选择时间
-    if (this.data.enableSubscribe && !this.data.reminderTime) {
+    // 验证事项时间
+    if (!this.data.reminderTime) {
       wx.showToast({
-        title: '请选择提醒时间',
+        title: '请选择事项时间',
         icon: 'none',
         duration: 2000
       })
       return
     }
 
-    // 如果选择了时间但未开启订阅，提示用户
-    if (this.data.reminderTime && !this.data.enableSubscribe) {
-      const res = await new Promise((resolve) => {
-        wx.showModal({
-          title: '提示',
-          content: '已选择提醒时间，是否开启消息提醒？',
-          success: (res) => resolve(res.confirm),
-          fail: () => resolve(false)
-        })
+    // 验证事项描述
+    if (!thing4) {
+      wx.showToast({
+        title: '请输入事项描述',
+        icon: 'none',
+        duration: 2000
       })
+      return
+    }
 
-      if (res) {
-        this.setData({ enableSubscribe: true })
-        await this.requestSubscribe()
-      }
+    // 如果开启了订阅，确保已授权
+    if (this.data.enableSubscribe) {
+      // 检查是否已授权，如果没有则请求授权
+      await this.requestSubscribe()
     }
 
     // 获取现有提醒列表
@@ -230,9 +203,11 @@ Page({
     // 创建新提醒
     const newReminder = {
       id: Date.now(),
-      title: title,
-      time: this.data.formattedTime || '',
-      reminderTime: this.data.reminderTime,
+      title: thing1, // 保留 title 字段用于兼容
+      thing1: thing1, // 事项主题
+      thing4: thing4, // 事项描述
+      time: this.data.formattedTime, // 事项时间（必填）
+      reminderTime: this.data.reminderTime, // 事项时间戳（必填）
       completed: false,
       enableSubscribe: this.data.enableSubscribe,
       createTime: new Date().toLocaleString('zh-CN')
@@ -244,15 +219,17 @@ Page({
     // 保存到本地存储
     wx.setStorageSync('reminders', reminders)
 
-    // 如果开启了订阅且有提醒时间，调用服务端API
-    if (this.data.enableSubscribe && this.data.reminderTime) {
+    // 如果开启了订阅，调用服务端API（时间现在是必填的）
+    if (this.data.enableSubscribe) {
       // 调用服务端API，将提醒信息发送到服务器
       // 服务端会在提醒时间到达时发送订阅消息
       const api = require('../../utils/api.js')
       
       api.createReminder({
-        title: title,
-        time: this.data.formattedTime,
+        title: thing1, // 保留 title 字段用于兼容
+        thing1: thing1, // 事项主题
+        thing4: thing4, // 事项描述
+        time: this.data.formattedTime, // 事项时间
         reminderTime: this.data.reminderTime,
         enableSubscribe: true
       }).then(() => {

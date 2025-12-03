@@ -90,29 +90,44 @@
     <view class="modal-body">
       <view class="input-wrapper">
         <text class="input-label">提醒内容</text>
-        <input 
-          class="input-field" 
-          placeholder="请输入提醒内容" 
-          value="{{newReminderTitle}}"
-          bindinput="onTitleInput"
+        <van-field
+          value="{{ newReminderTitle }}"
+          placeholder="请输入提醒内容"
           maxlength="50"
-          focus="{{inputFocus}}"
+          focus="{{ inputFocus }}"
+          bind:input="onTitleInput"
+          border="{{ false }}"
+          custom-class="custom-input-field"
+          input-class="input-field"
         />
       </view>
       <view class="input-wrapper">
         <text class="input-label">提醒时间 <text class="optional">(可选)</text></text>
-        <input 
-          class="input-field time-input" 
-          placeholder="例如：明天 10:00" 
-          value="{{newReminderTime}}"
-          bindinput="onTimeInput"
+        <van-field
+          value="{{ newReminderTime }}"
+          placeholder="例如：明天 10:00"
           maxlength="20"
+          bind:input="onTimeInput"
+          border="{{ false }}"
+          custom-class="custom-input-field"
+          input-class="input-field time-input"
         />
       </view>
     </view>
     <view class="modal-footer">
-      <button class="cancel-btn" bindtap="hideAddModal">取消</button>
-      <button class="confirm-btn" bindtap="addReminder">确定</button>
+      <van-button 
+        bind:click="hideAddModal"
+        custom-class="custom-cancel-btn"
+      >
+        取消
+      </van-button>
+      <van-button 
+        type="primary" 
+        bind:click="addReminder"
+        custom-class="custom-confirm-btn"
+      >
+        确定
+      </van-button>
     </view>
   </view>
 </view>

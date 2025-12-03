@@ -23,7 +23,7 @@
 
 ```javascript
 const tmplIds = [
-  '_qZfC75otflYg8nc1suRZK27Ke-mzc_sh3Vtpv8tr2w'
+  'is4mEq0nlt5fJRn-Pflnr-wJxoCKOz9qty857QmH7Bw'
 ]
 ```
 

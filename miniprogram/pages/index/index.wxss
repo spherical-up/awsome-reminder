@@ -664,3 +664,71 @@
   transform: scale(0.98);
   box-shadow: 0 2rpx 8rpx rgba(74, 144, 226, 0.4);
 }
+
+/* Vant 组件样式覆盖 */
+.custom-input-field {
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+.custom-input-field .van-cell {
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+.custom-input-field .van-field__body {
+  padding: 0 !important;
+}
+
+.custom-input-field .input-field {
+  width: 100%;
+  padding: 26rpx 22rpx;
+  border: 2rpx solid #e0e0e0;
+  border-radius: 14rpx;
+  font-size: 30rpx;
+  box-sizing: border-box;
+  background: #fafafa;
+  transition: all 0.3s;
+}
+
+.custom-input-field .input-field:focus {
+  border-color: #4a90e2;
+  background: white;
+  box-shadow: 0 0 0 6rpx rgba(74, 144, 226, 0.1);
+}
+
+.custom-cancel-btn,
+.custom-confirm-btn {
+  flex: 1 !important;
+  padding: 26rpx !important;
+  border-radius: 14rpx !important;
+  font-size: 30rpx !important;
+  font-weight: 600 !important;
+  border: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.3s !important;
+  margin: 0 !important;
+}
+
+.custom-cancel-btn {
+  background: #f5f5f5 !important;
+  color: #666666 !important;
+}
+
+.custom-cancel-btn:active {
+  background: #eeeeee !important;
+  transform: scale(0.98) !important;
+}
+
+.custom-confirm-btn {
+  background: linear-gradient(135deg, #4a90e2 0%, #87CEFA 100%) !important;
+  color: white !important;
+  box-shadow: 0 4rpx 12rpx rgba(74, 144, 226, 0.3) !important;
+}
+
+.custom-confirm-btn:active {
+  transform: scale(0.98) !important;
+  box-shadow: 0 2rpx 8rpx rgba(74, 144, 226, 0.4) !important;
+}

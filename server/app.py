@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 # 微信小程序配置（从环境变量读取）
 APPID = os.getenv('WX_APPID', 'your-appid')
 APPSECRET = os.getenv('WX_APPSECRET', 'your-appsecret')
-TEMPLATE_ID = os.getenv('WX_TEMPLATE_ID', '_qZfC75otflYg8nc1suRZK27Ke-mzc_sh3Vtpv8tr2w')
+TEMPLATE_ID = os.getenv('WX_TEMPLATE_ID', 'is4mEq0nlt5fJRn-Pflnr-wJxoCKOz9qty857QmH7Bw')
 # 消息推送 Token（用于验证消息来源）
 WX_TOKEN = os.getenv('WX_TOKEN', 'your_custom_token_123456')
 
@@ -170,14 +170,14 @@ def schedule_reminder(reminder):
                 logger.info(f'开始发送提醒: ID={reminder["id"]}, openid={reminder["openid"]}')
                 
                 # 构建模板数据
-                # 模板字段：事件名(thing1)、事件时间(time2)、事项(thing3)、时间(time6)、备注(thing5)
+                # 模板字段：事项主题(thing1)、事项时间(time2)、事项描述(thing4)
                 reminder_time = reminder.get('time', '')
+                thing1 = reminder.get('thing1', reminder.get('title', ''))[:20]  # 事项主题，优先使用 thing1，否则使用 title
+                thing4 = reminder.get('thing4', reminder.get('title', ''))[:20]  # 事项描述，优先使用 thing4，否则使用 title
                 template_data = {
-                    'thing1': {'value': reminder['title'][:20]},  # 事件名
-                    'time2': {'value': reminder_time},  # 事件时间
-                    'thing3': {'value': reminder['title'][:20]},  # 事项
-                    'time6': {'value': reminder_time},  # 时间
-                    'thing5': {'value': '来自哒哒提醒'[:20]}  # 备注
+                    'thing1': {'value': thing1},  # 事项主题
+                    'time2': {'value': reminder_time},  # 事项时间
+                    'thing4': {'value': thing4}  # 事项描述
                 }
                 
                 logger.info(f'模板数据: {template_data}')
@@ -240,9 +240,11 @@ def create_reminder():
     请求体:
     {
         "openid": "用户openid",
-        "title": "提醒内容",
-        "time": "提醒时间显示",
-        "reminderTime": 时间戳(毫秒),
+        "title": "提醒内容（兼容字段）",
+        "thing1": "事项主题（必填）",
+        "thing4": "事项描述（必填）",
+        "time": "事项时间显示（必填）",
+        "reminderTime": 时间戳(毫秒)（必填）,
         "enableSubscribe": true/false
     }
     """
@@ -251,7 +253,7 @@ def create_reminder():
         logger.info(f'收到创建提醒请求: {data}')
         
         # 验证必要字段
-        required_fields = ['openid', 'title', 'reminderTime']
+        required_fields = ['openid', 'reminderTime']
         for field in required_fields:
             if field not in data:
                 logger.warning(f'缺少必要字段: {field}, 请求数据: {data}')
@@ -260,12 +262,26 @@ def create_reminder():
                     'errmsg': f'缺少必要字段: {field}'
                 }), 400
         
+        # 验证事项相关字段（thing1, thing4, time 至少有一个）
+        thing1 = data.get('thing1', data.get('title', ''))
+        thing4 = data.get('thing4', '')
+        time_str = data.get('time', '')
+        
+        if not thing1 or not thing4 or not time_str:
+            logger.warning(f'缺少事项字段: thing1={thing1}, thing4={thing4}, time={time_str}, 请求数据: {data}')
+            return jsonify({
+                'errcode': 400,
+                'errmsg': '缺少必要字段: thing1（事项主题）、thing4（事项描述）、time（事项时间）均为必填'
+            }), 400
+        
         # 创建提醒记录
         reminder = {
             'id': int(datetime.now().timestamp() * 1000),
             'openid': data['openid'],
-            'title': data['title'],
-            'time': data.get('time', ''),
+            'title': thing1,  # 兼容字段，使用 thing1
+            'thing1': thing1,  # 事项主题
+            'thing4': thing4,  # 事项描述
+            'time': time_str,  # 事项时间
             'reminderTime': data['reminderTime'],
             'enableSubscribe': data.get('enableSubscribe', False),
             'createTime': datetime.now().isoformat(),
@@ -489,14 +505,14 @@ def manual_send_reminder(reminder_id):
         logger.info(f'手动发送提醒: ID={reminder_id}')
         
         # 构建模板数据
-        # 模板字段：事件名(thing1)、事件时间(time2)、事项(thing3)、时间(time6)、备注(thing5)
+        # 模板字段：事项主题(thing1)、事项时间(time2)、事项描述(thing4)
         reminder_time = reminder.get('time', '')
+        thing1 = reminder.get('thing1', reminder.get('title', ''))[:20]  # 事项主题，优先使用 thing1，否则使用 title
+        thing4 = reminder.get('thing4', reminder.get('title', ''))[:20]  # 事项描述，优先使用 thing4，否则使用 title
         template_data = {
-            'thing1': {'value': reminder['title'][:20]},  # 事件名
-            'time2': {'value': reminder_time},  # 事件时间
-            'thing3': {'value': reminder['title'][:20]},  # 事项
-            'time6': {'value': reminder_time},  # 时间
-            'thing5': {'value': '来自哒哒提醒'[:20]}  # 备注
+            'thing1': {'value': thing1},  # 事项主题
+            'time2': {'value': reminder_time},  # 事项时间
+            'thing4': {'value': thing4}  # 事项描述
         }
         
         logger.info(f'模板数据: {template_data}')

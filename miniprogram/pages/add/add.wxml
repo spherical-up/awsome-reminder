@@ -1,70 +1,76 @@
 <!--add.wxml-->
 <view class="container">
-  <view class="form-wrapper">
-    <view class="input-wrapper">
-      <text class="input-label">提醒内容</text>
-      <textarea 
-        class="textarea-field" 
-        placeholder="请输入提醒内容" 
-        value="{{reminderTitle}}"
-        bindinput="onTitleInput"
-        maxlength="200"
-        auto-focus="{{true}}"
-        show-confirm-bar="{{false}}"
+  <!-- 表单字段 -->
+  <van-cell-group>
+    <!-- 1. 事项主题 -->
+    <van-field
+      label="事项主题"
+      required
+      placeholder="请输入事项主题"
+      value="{{ thing1 }}"
+      maxlength="20"
+      autofocus
+      bind:input="onThing1Input"
+    />
+
+    <!-- 2. 事项时间选择器 -->
+    <van-field
+      label="事项时间"
+      required
+      right-icon="clock-o"
+      value="{{ formattedTime }}"
+      readonly
+      clickable
+      placeholder="请选择日期时间"
+      bind:click-input="showDateTimePicker"
+    />
+
+    <!-- 3. 事项描述 -->
+    <van-field
+      label="事项描述"
+      required
+      type="textarea"
+      autosize="{{ textareaAutosize }}"
+      value="{{ thing4 }}"
+      placeholder="请输入事项描述"
+      maxlength="200"
+      show-confirm-bar="{{ false }}"
+      bind:input="onThing4Input"
+    />
+  </van-cell-group>
+
+  <!-- 订阅消息开关 -->
+  <van-cell-group>
+    <van-cell
+      title="开启消息提醒"
+      label="开启后，提醒时间到达时会收到微信消息通知"
+    >
+      <van-switch
+        checked="{{ enableSubscribe }}"
+        active-color="#4a90e2"
+        bind:change="onSubscribeChange"
       />
-    </view>
+    </van-cell>
+  </van-cell-group>
 
-    <view class="input-wrapper">
-      <text class="input-label">提醒时间 <text class="optional">(可选)</text></text>
-      <view class="time-picker-group">
-        <picker 
-          mode="date" 
-          value="{{selectedDate}}"
-          start="{{minDate}}"
-          bindchange="onDateChange"
-        >
-          <view class="picker-view date-picker">
-            <text class="picker-text {{selectedDate ? '' : 'placeholder'}}">
-              {{selectedDate || '选择日期'}}
-            </text>
-            <text class="picker-arrow">›</text>
-          </view>
-        </picker>
-        <picker 
-          mode="multiSelector" 
-          range="{{timeRange}}"
-          value="{{timeIndex}}"
-          bindchange="onTimeChange"
-          bindcolumnchange="onTimeColumnChange"
-        >
-          <view class="picker-view time-picker">
-            <text class="picker-text {{selectedTime ? '' : 'placeholder'}}">
-              {{selectedTime || '选择时间'}}
-            </text>
-            <text class="picker-arrow">›</text>
-          </view>
-        </picker>
-      </view>
-      <text class="time-display" wx:if="{{formattedTime}}">
-        {{formattedTime}}
-      </text>
-    </view>
-
-    <view class="subscribe-wrapper">
-      <view class="subscribe-item">
-        <text class="subscribe-label">开启消息提醒</text>
-        <switch 
-          checked="{{enableSubscribe}}" 
-          bindchange="onSubscribeChange"
-          color="#4a90e2"
-        />
-      </view>
-      <text class="subscribe-tip">开启后，提醒时间到达时会收到微信消息通知</text>
-    </view>
-    
-    <view class="button-wrapper">
-      <button class="save-btn" bindtap="saveReminder">保存</button>
-    </view>
+  <!-- 提交按钮 -->
+  <view class="submit">
+    <van-button type="primary" block bind:click="saveReminder">保存</van-button>
   </view>
+
+  <!-- 日期时间选择器弹窗 -->
+  <van-popup
+    show="{{ showDateTimePicker }}"
+    position="bottom"
+    bind:close="hideDateTimePicker"
+  >
+    <van-datetime-picker
+      type="datetime"
+      value="{{ dateTimePickerValue }}"
+      min-date="{{ minDateTimestamp }}"
+      bind:confirm="onDateTimeConfirm"
+      bind:cancel="hideDateTimePicker"
+    />
+  </van-popup>
 </view>
 

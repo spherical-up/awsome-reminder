@@ -54,15 +54,19 @@ Page({
 
   // 输入提醒标题
   onTitleInput(e) {
+    // van-field 的 input 事件直接返回 value
+    const value = typeof e.detail === 'string' ? e.detail : (e.detail?.value || e.detail)
     this.setData({
-      newReminderTitle: e.detail.value
+      newReminderTitle: value
     })
   },
 
   // 输入提醒时间
   onTimeInput(e) {
+    // van-field 的 input 事件直接返回 value
+    const value = typeof e.detail === 'string' ? e.detail : (e.detail?.value || e.detail)
     this.setData({
-      newReminderTime: e.detail.value
+      newReminderTime: value
     })
   },
 
