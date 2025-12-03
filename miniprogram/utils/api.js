@@ -70,8 +70,10 @@ function createReminder(reminderData) {
         method: 'POST',
         data: {
           openid: openid,
-          title: reminderData.title,
-          time: reminderData.time,
+          title: reminderData.title, // 保留 title 字段用于兼容
+          thing1: reminderData.thing1 || reminderData.title, // 事项主题
+          thing4: reminderData.thing4 || '', // 事项描述
+          time: reminderData.time, // 事项时间
           reminderTime: reminderData.reminderTime,
           enableSubscribe: reminderData.enableSubscribe
         },

@@ -5,7 +5,7 @@
     <view class="header-content">
       <view class="title-wrapper">
         <text class="title-icon">✨</text>
-        <text class="title">哒哒提醒</text>
+        <text class="title">松鼠小记</text>
       </view>
       <view class="stats-wrapper">
         <view class="stat-item">
