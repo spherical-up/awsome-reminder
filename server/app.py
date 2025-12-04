@@ -46,7 +46,42 @@ access_token = None
 token_expires_at = None
 
 # 数据库配置
-DB_HOST = os.getenv('DB_HOST', 'localhost')
+# 自动检测运行环境：如果在 Docker 容器中，使用 host.docker.internal；否则使用 localhost
+def get_db_host():
+    """自动检测数据库主机地址"""
+    # 如果环境变量中已指定，直接使用（优先级最高）
+    env_host = os.getenv('DB_HOST')
+    if env_host:
+        return env_host
+    
+    # 检测是否在 Docker 容器中运行
+    is_docker = False
+    
+    # 方法1: 检查 /.dockerenv 文件（Docker 容器中通常存在）
+    if os.path.exists('/.dockerenv'):
+        is_docker = True
+    
+    # 方法2: 检查环境变量（Docker Compose 会设置）
+    if os.getenv('DOCKER_CONTAINER') == 'true':
+        is_docker = True
+    
+    # 方法3: 检查 cgroup（Linux 容器）
+    try:
+        with open('/proc/self/cgroup', 'r') as f:
+            if 'docker' in f.read():
+                is_docker = True
+    except:
+        pass
+    
+    if is_docker:
+        # 在 Docker 容器中，优先尝试 host.docker.internal
+        # 如果系统不支持（如某些 Linux 服务器），可以手动在 .env 中设置 DB_HOST=172.17.0.1
+        return 'host.docker.internal'
+    
+    # 本地开发环境
+    return 'localhost'
+
+DB_HOST = get_db_host()
 DB_PORT = os.getenv('DB_PORT', '3306')
 DB_USER = os.getenv('DB_USER', 'root')
 DB_PASSWORD = os.getenv('DB_PASSWORD', '')
