@@ -11,10 +11,17 @@ Page({
     inputFocus: false,
     totalCount: 0,
     completedCount: 0,
-    loading: false
+    loading: false,
+    shareReminderId: null  // 用于分享的提醒ID
   },
 
-  onLoad() {
+  onLoad(options) {
+    // 检查是否是分享的提醒
+    if (options.reminder_id && options.action === 'accept') {
+      this.handleSharedReminder(options.reminder_id)
+      return
+    }
+    
     this.loadReminders()
   },
 
@@ -26,6 +33,7 @@ Page({
   async loadReminders() {
     this.setData({ loading: true })
     try {
+      // getReminders 已经返回了所有提醒（包括被分配的）
       const reminders = await api.getReminders()
       const completedCount = reminders.filter(r => r.completed).length
       this.setData({
@@ -194,6 +202,186 @@ Page({
         }
       }
     })
+  },
+
+  // 分享提醒给好友
+  async shareReminder(e) {
+    const reminder = e.currentTarget.dataset.reminder
+    if (!reminder || !reminder.id) {
+      wx.showToast({
+        title: '提醒信息错误',
+        icon: 'none'
+      })
+      return
+    }
+    
+    try {
+      const openid = await api.getUserOpenid()
+      
+      // 权限控制1：前端验证是否是提醒创建者
+      if (reminder.ownerOpenid && reminder.ownerOpenid !== openid) {
+        wx.showToast({
+          title: '只有创建者可以分享',
+          icon: 'none',
+          duration: 2000
+        })
+        return
+      }
+      
+      // 权限控制2：如果是被分配的提醒，不能分享
+      if (reminder.fromOwner) {
+        wx.showToast({
+          title: '不能分享他人分享的提醒',
+          icon: 'none',
+          duration: 2000
+        })
+        return
+      }
+      
+      // 调用后端API记录分享（后端会再次验证权限）
+      await api.shareReminder(reminder.id, openid)
+      
+      // 设置分享数据，用于onShareAppMessage
+      this.setData({
+        shareReminderId: reminder.id
+      })
+      
+      // 显示分享菜单
+      wx.showShareMenu({
+        withShareTicket: true,
+        menus: ['shareAppMessage', 'shareTimeline']
+      })
+      
+      wx.showToast({
+        title: '可以多次分享给不同好友',
+        icon: 'none',
+        duration: 2000
+      })
+    } catch (err) {
+      console.error('分享提醒失败', err)
+      // 处理后端返回的权限错误
+      if (err.message && err.message.includes('无权') || err.message.includes('403')) {
+        wx.showToast({
+          title: '只有创建者可以分享',
+          icon: 'none',
+          duration: 2000
+        })
+      } else {
+        wx.showToast({
+          title: err.message || '分享失败',
+          icon: 'none',
+          duration: 2000
+        })
+      }
+    }
+  },
+
+  // 处理分享的提醒
+  async handleSharedReminder(reminderId) {
+    try {
+      wx.showModal({
+        title: '收到提醒分享',
+        content: '是否接受这个提醒？',
+        success: async (res) => {
+          if (res.confirm) {
+            await this.acceptSharedReminder(reminderId)
+          } else {
+            // 拒绝或取消，正常加载列表
+            this.loadReminders()
+          }
+        },
+        fail: () => {
+          this.loadReminders()
+        }
+      })
+    } catch (err) {
+      console.error('处理分享提醒失败', err)
+      this.loadReminders()
+    }
+  },
+
+  // 接受分享的提醒
+  async acceptSharedReminder(reminderId) {
+    try {
+      wx.showLoading({ title: '接受中...' })
+      
+      const openid = await api.getUserOpenid()
+      const result = await api.acceptReminder(reminderId, openid)
+      
+      wx.hideLoading()
+      
+      // 处理重复接受的情况
+      if (result.alreadyAccepted) {
+        wx.showModal({
+          title: '提示',
+          content: result.message || '您已经接受过此提醒',
+          showCancel: false,
+          success: () => {
+            this.loadReminders()
+          }
+        })
+        return
+      }
+      
+      if (result.message) {
+        wx.showToast({
+          title: result.message,
+          icon: 'none',
+          duration: 2000
+        })
+      } else {
+        wx.showToast({
+          title: '已接受提醒',
+          icon: 'success'
+        })
+      }
+      
+      // 重新加载列表
+      await this.loadReminders()
+    } catch (err) {
+      wx.hideLoading()
+      console.error('接受提醒失败', err)
+      
+      // 处理各种错误情况
+      let errorMsg = err.message || '接受失败'
+      
+      if (errorMsg.includes('已经接受') || errorMsg.includes('alreadyAccepted')) {
+        errorMsg = '您已经接受过此提醒'
+      } else if (errorMsg.includes('不能接受自己')) {
+        errorMsg = '不能接受自己创建的提醒'
+      } else if (errorMsg.includes('400')) {
+        errorMsg = '无法接受此提醒，可能已经接受过'
+      }
+      
+      wx.showModal({
+        title: '接受失败',
+        content: errorMsg,
+        showCancel: false,
+        success: () => {
+          this.loadReminders()
+        }
+      })
+    }
+  },
+
+  // 页面分享配置
+  onShareAppMessage(options) {
+    const reminderId = options.from === 'button' 
+      ? (options.target.dataset.reminderId || this.data.shareReminderId)
+      : this.data.shareReminderId
+    
+    if (reminderId) {
+      return {
+        title: '我有一个提醒想分享给你',
+        path: `/pages/index/index?reminder_id=${reminderId}&action=accept`,
+        imageUrl: '' // 可选：分享图片
+      }
+    }
+    
+    return {
+      title: '松鼠小记 - 提醒助手',
+      path: '/pages/index/index'
+    }
   }
 })
 

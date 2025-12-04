@@ -4,10 +4,10 @@
 // 配置服务端地址（开发环境）
 // 注意：微信开发者工具不支持 localhost，需要使用本地 IP
 // 获取本地 IP: ifconfig | grep "inet " | grep -v 127.0.0.1
-// const API_BASE_URL = 'http://10.0.1.130:5001/api'
+const API_BASE_URL = 'http://10.0.1.130:5001/api'
 
 // 生产环境配置
-const API_BASE_URL = 'https://www.6ht6.com/api'
+// const API_BASE_URL = 'https://www.6ht6.com/api'
 
 /**
  * 获取用户 openid
@@ -224,6 +224,95 @@ function updateReminderComplete(reminderId, completed) {
   })
 }
 
+/**
+ * 分享提醒
+ */
+function shareReminder(reminderId, ownerOpenid) {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${API_BASE_URL}/reminder/${reminderId}/share`,
+      method: 'POST',
+      data: {
+        owner_openid: ownerOpenid
+      },
+      success: (res) => {
+        if (res.data.errcode === 0) {
+          resolve(res.data.data)
+        } else {
+          reject(new Error(res.data.errmsg || '分享失败'))
+        }
+      },
+      fail: reject
+    })
+  })
+}
+
+/**
+ * 接受分享的提醒
+ */
+function acceptReminder(reminderId, assignedOpenid) {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${API_BASE_URL}/reminder/${reminderId}/accept`,
+      method: 'POST',
+      data: {
+        assigned_openid: assignedOpenid
+      },
+      success: (res) => {
+        // 处理400错误（重复接受）
+        if (res.statusCode === 400 && res.data.errcode === 400) {
+          // 返回数据中包含alreadyAccepted标记
+          resolve(res.data.data || { alreadyAccepted: true, message: res.data.errmsg })
+          return
+        }
+        
+        if (res.data.errcode === 0) {
+          resolve(res.data.data)
+        } else {
+          reject(new Error(res.data.errmsg || '接受失败'))
+        }
+      },
+      fail: (err) => {
+        // 处理HTTP错误
+        if (err.statusCode === 400) {
+          // 尝试解析错误信息
+          try {
+            const errorData = JSON.parse(err.data || '{}')
+            resolve({ alreadyAccepted: true, message: errorData.errmsg || '已经接受过此提醒' })
+          } catch {
+            reject(new Error('已经接受过此提醒'))
+          }
+        } else {
+          reject(err)
+        }
+      }
+    })
+  })
+}
+
+/**
+ * 获取分配给自己的提醒
+ */
+function getAssignedReminders(openid) {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${API_BASE_URL}/reminders/assigned`,
+      method: 'GET',
+      data: {
+        openid: openid
+      },
+      success: (res) => {
+        if (res.data.errcode === 0) {
+          resolve(res.data.data || [])
+        } else {
+          reject(new Error(res.data.errmsg || '获取失败'))
+        }
+      },
+      fail: reject
+    })
+  })
+}
+
 module.exports = {
   API_BASE_URL,
   getUserOpenid,
@@ -232,6 +321,9 @@ module.exports = {
   getReminder,
   updateReminder,
   deleteReminder,
-  updateReminderComplete
+  updateReminderComplete,
+  shareReminder,
+  acceptReminder,
+  getAssignedReminders
 }
 

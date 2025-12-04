@@ -48,10 +48,18 @@
             <text class="time-icon">🕐</text>
             <text class="reminder-time">{{item.time}}</text>
           </view>
+          <view class="reminder-source" wx:if="{{item.fromOwner}}">
+            <text class="source-text">📤 来自分享</text>
+          </view>
         </view>
       </view>
-      <view class="delete-btn" bindtap="deleteReminder" data-reminder="{{item}}">
-        <text class="delete-icon">🗑️</text>
+      <view class="reminder-actions">
+        <view class="share-btn" bindtap="shareReminder" data-reminder="{{item}}" wx:if="{{!item.fromOwner}}">
+          <text class="share-icon">📤</text>
+        </view>
+        <view class="delete-btn" bindtap="deleteReminder" data-reminder="{{item}}">
+          <text class="delete-icon">🗑️</text>
+        </view>
       </view>
     </view>
     
