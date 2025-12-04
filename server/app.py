@@ -15,6 +15,7 @@ import logging
 from sqlalchemy import create_engine, Column, Integer, String, BigInteger, Boolean, DateTime, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session
+import pymysql
 
 # 加载环境变量
 load_dotenv()
@@ -82,10 +83,45 @@ def get_db_host():
     return 'localhost'
 
 DB_HOST = get_db_host()
-DB_PORT = os.getenv('DB_PORT', '3306')
+DB_PORT = int(os.getenv('DB_PORT', '3306'))
 DB_USER = os.getenv('DB_USER', 'root')
 DB_PASSWORD = os.getenv('DB_PASSWORD', '')
 DB_NAME = os.getenv('DB_NAME', 'reminder_db')
+
+# 自动创建数据库（如果不存在）
+def ensure_database_exists():
+    """确保数据库存在，如果不存在则创建"""
+    try:
+        # 连接到 MySQL 服务器（不指定数据库）
+        connection = pymysql.connect(
+            host=DB_HOST,
+            port=DB_PORT,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            charset='utf8mb4'
+        )
+        
+        try:
+            with connection.cursor() as cursor:
+                # 检查数据库是否存在
+                cursor.execute(f"SHOW DATABASES LIKE '{DB_NAME}'")
+                result = cursor.fetchone()
+                
+                if not result:
+                    # 数据库不存在，创建它
+                    cursor.execute(f"CREATE DATABASE `{DB_NAME}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+                    connection.commit()
+                    logger.info(f'✅ 数据库 {DB_NAME} 创建成功')
+                else:
+                    logger.info(f'✅ 数据库 {DB_NAME} 已存在')
+        finally:
+            connection.close()
+    except Exception as e:
+        logger.warning(f'检查/创建数据库时出错: {str(e)}，将尝试直接连接数据库')
+        # 如果无法创建数据库（可能是权限问题），继续尝试连接
+
+# 确保数据库存在
+ensure_database_exists()
 
 # 构建数据库连接字符串
 DATABASE_URL = f'mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4'
@@ -99,7 +135,7 @@ SessionLocal = scoped_session(sessionmaker(bind=engine))
 class Reminder(Base):
     __tablename__ = 'reminders'
     
-    id = Column(BigInteger, primary_key=True)
+    id = Column(String(200), primary_key=True)  # 使用 openid + reminder_time 组合作为 ID
     openid = Column(String(100), nullable=False, index=True)
     title = Column(String(500), nullable=False)  # 兼容字段
     thing1 = Column(String(500), nullable=False)  # 事项主题
@@ -128,12 +164,17 @@ class Reminder(Base):
         }
 
 # 创建表（如果不存在）
-try:
-    Base.metadata.create_all(engine)
-    logger.info('数据库表创建成功')
-except Exception as e:
-    logger.error(f'数据库表创建失败: {str(e)}')
-    logger.error('请检查数据库配置和连接')
+def ensure_tables_exist():
+    """确保数据库表存在，如果不存在则创建"""
+    try:
+        Base.metadata.create_all(engine)
+        logger.info('✅ 数据库表创建/检查成功')
+    except Exception as e:
+        logger.error(f'❌ 数据库表创建失败: {str(e)}')
+        logger.error('请检查数据库配置和连接')
+        raise
+
+ensure_tables_exist()
 
 # 初始化调度器
 scheduler = BackgroundScheduler()
@@ -379,7 +420,8 @@ def create_reminder():
             }), 400
         
         # 创建提醒记录
-        reminder_id = int(datetime.now().timestamp() * 1000)
+        # 使用 openid + reminder_time 组合作为唯一 ID
+        reminder_id = f"{data['openid']}_{data['reminderTime']}"
         db = SessionLocal()
         try:
             reminder = Reminder(
@@ -458,7 +500,7 @@ def create_reminder():
         }), 500
 
 
-@app.route('/api/reminder/<int:reminder_id>', methods=['GET', 'DELETE', 'PUT'])
+@app.route('/api/reminder/<string:reminder_id>', methods=['GET', 'DELETE', 'PUT'])
 def reminder_detail(reminder_id):
     """
     获取、更新或删除提醒接口
@@ -666,7 +708,7 @@ def get_reminders():
         }), 500
 
 
-@app.route('/api/reminder/<int:reminder_id>/complete', methods=['PUT'])
+@app.route('/api/reminder/<string:reminder_id>/complete', methods=['PUT'])
 def update_reminder_complete(reminder_id):
     """
     更新提醒完成状态接口
@@ -867,7 +909,7 @@ def get_scheduled_jobs():
         }), 500
 
 
-@app.route('/api/debug/reminder/<int:reminder_id>/send', methods=['POST'])
+@app.route('/api/debug/reminder/<string:reminder_id>/send', methods=['POST'])
 def manual_send_reminder(reminder_id):
     """
     手动发送提醒（用于测试和调试）
