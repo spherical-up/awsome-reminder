@@ -64,13 +64,49 @@
     position="bottom"
     bind:close="hideDateTimePicker"
   >
-    <van-datetime-picker
-      type="datetime"
-      value="{{ dateTimePickerValue }}"
-      min-date="{{ minDateTimestamp }}"
-      bind:confirm="onDateTimeConfirm"
-      bind:cancel="hideDateTimePicker"
-    />
+    <view class="picker-container">
+      <view class="picker-toolbar">
+        <view class="picker-toolbar-btn" bind:tap="hideDateTimePicker">取消</view>
+        <view class="picker-toolbar-title">选择日期时间</view>
+        <view class="picker-toolbar-btn confirm-btn" bind:tap="onPickerConfirm">确定</view>
+      </view>
+      <view class="picker-view-wrapper">
+        <!-- 悬浮标签栏 -->
+        <view class="picker-labels">
+          <view class="picker-label">年</view>
+          <view class="picker-label">月</view>
+          <view class="picker-label">日</view>
+          <view class="picker-label">时</view>
+          <view class="picker-label">分</view>
+          <view class="picker-label">秒</view>
+        </view>
+        <!-- 选择器 -->
+        <picker-view
+          value="{{ pickerValue }}"
+          bind:change="onPickerViewChange"
+          class="picker-wrapper"
+        >
+          <picker-view-column>
+            <view wx:for="{{ pickerRange[0] }}" wx:key="index" class="picker-item">{{ item }}</view>
+          </picker-view-column>
+          <picker-view-column>
+            <view wx:for="{{ pickerRange[1] }}" wx:key="index" class="picker-item">{{ item }}</view>
+          </picker-view-column>
+          <picker-view-column>
+            <view wx:for="{{ pickerRange[2] }}" wx:key="index" class="picker-item">{{ item }}</view>
+          </picker-view-column>
+          <picker-view-column>
+            <view wx:for="{{ pickerRange[3] }}" wx:key="index" class="picker-item">{{ item }}</view>
+          </picker-view-column>
+          <picker-view-column>
+            <view wx:for="{{ pickerRange[4] }}" wx:key="index" class="picker-item">{{ item }}</view>
+          </picker-view-column>
+          <picker-view-column>
+            <view wx:for="{{ pickerRange[5] }}" wx:key="index" class="picker-item">{{ item }}</view>
+          </picker-view-column>
+        </picker-view>
+      </view>
+    </view>
   </van-popup>
 </view>
 

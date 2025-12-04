@@ -16,6 +16,8 @@ Page({
     minDateTimestamp: 0, // 最小日期时间戳
     showDateTimePicker: false, // 显示日期时间选择器
     dateTimePickerValue: Date.now(), // 日期时间选择器值（时间戳）
+    pickerValue: [0, 0, 0, 0, 0, 0], // 多列选择器的当前值 [年, 月, 日, 时, 分, 秒]
+    pickerRange: [[], [], [], [], [], []], // 多列选择器的数据范围
     textareaAutosize: {
       minHeight: 160, // 最小高度 160rpx (约 80px)
       maxHeight: 300  // 最大高度 300rpx (约 150px)
@@ -31,6 +33,10 @@ Page({
     const day = String(today.getDate()).padStart(2, '0')
     const minDate = `${year}-${month}-${day}`
     
+    // 初始化选择器数据（使用当前时间）
+    const now = new Date()
+    this.initPickerData(now)
+    
     this.setData({
       minDate: minDate,
       minDateTimestamp: today.getTime(),
@@ -39,7 +45,8 @@ Page({
 
     // 检查是否是编辑模式
     if (options.id) {
-      const reminderId = parseInt(options.id)
+      // ID 现在是字符串格式（openid_reminderTime），不需要 parseInt
+      const reminderId = options.id
       this.setData({
         reminderId: reminderId,
         isEditMode: true
@@ -124,27 +131,231 @@ Page({
   showDateTimePicker() {
     // 如果有已选时间，使用已选时间；否则使用当前时间
     const currentValue = this.data.reminderTime || Date.now()
+    const date = new Date(currentValue)
+    
+    // 初始化选择器数据
+    this.initPickerData(date)
+    
+    // 确保数据已设置后再显示弹窗
+    setTimeout(() => {
+      this.setData({
+        showDateTimePicker: true,
+        dateTimePickerValue: currentValue
+      })
+    }, 50)
+  },
+
+  // 初始化选择器数据
+  initPickerData(date) {
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth() + 1
+    const currentDay = now.getDate()
+    const currentHour = now.getHours()
+    const currentMinute = now.getMinutes()
+    const currentSecond = now.getSeconds()
+    
+    const year = date.getFullYear()
+    const month = date.getMonth() + 1
+    const day = date.getDate()
+    const hour = date.getHours()
+    const minute = date.getMinutes()
+    const second = date.getSeconds()
+    
+    // 生成年份数组（当前年份及以后10年）
+    const years = []
+    for (let i = currentYear; i <= currentYear + 10; i++) {
+      years.push(String(i))
+    }
+    
+    // 根据选中的年份生成月份数组
+    const months = []
+    const minMonth = (year === currentYear) ? currentMonth : 1
+    for (let i = minMonth; i <= 12; i++) {
+      months.push(String(i).padStart(2, '0'))
+    }
+    
+    // 根据选中的年月生成日期数组
+    const daysInMonth = new Date(year, month, 0).getDate()
+    const days = []
+    const minDay = (year === currentYear && month === currentMonth) ? currentDay : 1
+    for (let i = minDay; i <= daysInMonth; i++) {
+      days.push(String(i).padStart(2, '0'))
+    }
+    
+    // 根据选中的年月日生成小时数组
+    const hours = []
+    const minHour = (year === currentYear && month === currentMonth && day === currentDay) ? currentHour : 0
+    for (let i = minHour; i <= 23; i++) {
+      hours.push(String(i).padStart(2, '0'))
+    }
+    
+    // 根据选中的年月日时生成分钟数组
+    const minutes = []
+    const minMinute = (year === currentYear && month === currentMonth && day === currentDay && hour === currentHour) ? currentMinute : 0
+    for (let i = minMinute; i <= 59; i++) {
+      minutes.push(String(i).padStart(2, '0'))
+    }
+    
+    // 根据选中的年月日时分生成秒数组
+    const seconds = []
+    const minSecond = (year === currentYear && month === currentMonth && day === currentDay && hour === currentHour && minute === currentMinute) ? currentSecond : 0
+    for (let i = minSecond; i <= 59; i++) {
+      seconds.push(String(i).padStart(2, '0'))
+    }
+    
+    // 计算当前选中索引
+    let yearIndex = years.indexOf(String(year))
+    if (yearIndex < 0) {
+      yearIndex = 0 // 如果不在范围内，使用最小值
+    }
+    const monthIndex = months.indexOf(String(month).padStart(2, '0'))
+    const dayIndex = days.indexOf(String(day).padStart(2, '0'))
+    const hourIndex = hours.indexOf(String(hour).padStart(2, '0'))
+    const minuteIndex = minutes.indexOf(String(minute).padStart(2, '0'))
+    const secondIndex = seconds.indexOf(String(second).padStart(2, '0'))
+    
+    // 确保索引有效
+    const finalMonthIndex = monthIndex >= 0 ? monthIndex : 0
+    const finalDayIndex = dayIndex >= 0 ? dayIndex : 0
+    const finalHourIndex = hourIndex >= 0 ? hourIndex : 0
+    const finalMinuteIndex = minuteIndex >= 0 ? minuteIndex : 0
+    const finalSecondIndex = secondIndex >= 0 ? secondIndex : 0
+    
+    const pickerRange = [years, months, days, hours, minutes, seconds]
+    const pickerValue = [yearIndex, finalMonthIndex, finalDayIndex, finalHourIndex, finalMinuteIndex, finalSecondIndex]
+    
+    console.log('初始化选择器数据:', {
+      pickerRange: pickerRange.map((arr, i) => `${['年', '月', '日', '时', '分', '秒'][i]}: ${arr.length}项`),
+      pickerValue: pickerValue
+    })
+    
     this.setData({
-      showDateTimePicker: true,
-      dateTimePickerValue: currentValue
+      pickerRange: pickerRange,
+      pickerValue: pickerValue
     })
   },
 
-  // 隐藏日期时间选择器
-  hideDateTimePicker() {
+  // picker-view 变化事件
+  onPickerViewChange(e) {
+    const pickerValue = e.detail.value
+    const pickerRange = [...this.data.pickerRange]
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth() + 1
+    const currentDay = now.getDate()
+    const currentHour = now.getHours()
+    const currentMinute = now.getMinutes()
+    const currentSecond = now.getSeconds()
+    
+    const newYear = parseInt(pickerRange[0][pickerValue[0]])
+    const newMonth = parseInt(pickerRange[1][pickerValue[1]])
+    const newDay = pickerValue[2] < pickerRange[2].length ? parseInt(pickerRange[2][pickerValue[2]]) : 1
+    const newHour = pickerValue[3] < pickerRange[3].length ? parseInt(pickerRange[3][pickerValue[3]]) : 0
+    const newMinute = pickerValue[4] < pickerRange[4].length ? parseInt(pickerRange[4][pickerValue[4]]) : 0
+    
+    // 如果年份改变，需要更新月份数组
+    if (pickerValue[0] !== this.data.pickerValue[0]) {
+      const months = []
+      const minMonth = (newYear === currentYear) ? currentMonth : 1
+      for (let i = minMonth; i <= 12; i++) {
+        months.push(String(i).padStart(2, '0'))
+      }
+      pickerRange[1] = months
+      pickerValue[1] = 0 // 重置月份索引
+    }
+    
+    // 如果年份或月份改变，需要更新日期数组
+    if (pickerValue[0] !== this.data.pickerValue[0] || pickerValue[1] !== this.data.pickerValue[1]) {
+      const daysInMonth = new Date(newYear, newMonth, 0).getDate()
+      const days = []
+      const minDay = (newYear === currentYear && newMonth === currentMonth) ? currentDay : 1
+      for (let i = minDay; i <= daysInMonth; i++) {
+        days.push(String(i).padStart(2, '0'))
+      }
+      pickerRange[2] = days
+      pickerValue[2] = 0 // 重置日期索引
+    }
+    
+    // 如果年月日改变，需要更新小时数组
+    if (pickerValue[0] !== this.data.pickerValue[0] || pickerValue[1] !== this.data.pickerValue[1] || pickerValue[2] !== this.data.pickerValue[2]) {
+      const hours = []
+      const minHour = (newYear === currentYear && newMonth === currentMonth && newDay === currentDay) ? currentHour : 0
+      for (let i = minHour; i <= 23; i++) {
+        hours.push(String(i).padStart(2, '0'))
+      }
+      pickerRange[3] = hours
+      pickerValue[3] = 0 // 重置小时索引
+    }
+    
+    // 如果年月日时改变，需要更新分钟数组
+    if (pickerValue[0] !== this.data.pickerValue[0] || pickerValue[1] !== this.data.pickerValue[1] || 
+        pickerValue[2] !== this.data.pickerValue[2] || pickerValue[3] !== this.data.pickerValue[3]) {
+      const minutes = []
+      const minMinute = (newYear === currentYear && newMonth === currentMonth && newDay === currentDay && newHour === currentHour) ? currentMinute : 0
+      for (let i = minMinute; i <= 59; i++) {
+        minutes.push(String(i).padStart(2, '0'))
+      }
+      pickerRange[4] = minutes
+      pickerValue[4] = 0 // 重置分钟索引
+    }
+    
+    // 如果年月日时分改变，需要更新秒数组
+    if (pickerValue[0] !== this.data.pickerValue[0] || pickerValue[1] !== this.data.pickerValue[1] || 
+        pickerValue[2] !== this.data.pickerValue[2] || pickerValue[3] !== this.data.pickerValue[3] || 
+        pickerValue[4] !== this.data.pickerValue[4]) {
+      const seconds = []
+      const minSecond = (newYear === currentYear && newMonth === currentMonth && newDay === currentDay && 
+                         newHour === currentHour && newMinute === currentMinute) ? currentSecond : 0
+      for (let i = minSecond; i <= 59; i++) {
+        seconds.push(String(i).padStart(2, '0'))
+      }
+      pickerRange[5] = seconds
+      pickerValue[5] = 0 // 重置秒索引
+    }
+    
+    // 确保索引不超出范围
+    for (let i = 0; i < pickerValue.length; i++) {
+      if (pickerValue[i] >= pickerRange[i].length) {
+        pickerValue[i] = pickerRange[i].length - 1
+      }
+    }
+    
     this.setData({
-      showDateTimePicker: false
+      pickerValue: pickerValue,
+      pickerRange: pickerRange
     })
   },
 
-  // 日期时间选择确认
-  onDateTimeConfirm(e) {
-    const timestamp = typeof e.detail === 'number' ? e.detail : (e.detail?.value || Date.now())
-    const date = new Date(timestamp)
+  // 选择器确认
+  onPickerConfirm() {
+    const pickerValue = this.data.pickerValue
+    const pickerRange = this.data.pickerRange
+    
+    const year = parseInt(pickerRange[0][pickerValue[0]])
+    const month = parseInt(pickerRange[1][pickerValue[1]]) - 1 // 月份从0开始
+    const day = parseInt(pickerRange[2][pickerValue[2]])
+    const hour = parseInt(pickerRange[3][pickerValue[3]])
+    const minute = parseInt(pickerRange[4][pickerValue[4]])
+    const second = parseInt(pickerRange[5][pickerValue[5]])
+    
+    const date = new Date(year, month, day, hour, minute, second)
+    const timestamp = date.getTime()
+    const now = Date.now()
     
     // 检查时间是否有效
     if (isNaN(date.getTime())) {
       console.error('日期时间无效:', timestamp)
+      return
+    }
+    
+    // 检查时间不能早于当前时间
+    if (timestamp < now) {
+      wx.showToast({
+        title: '不能选择过去的时间',
+        icon: 'none',
+        duration: 2000
+      })
       return
     }
     
@@ -157,6 +368,14 @@ Page({
       showDateTimePicker: false
     })
   },
+
+  // 隐藏日期时间选择器
+  hideDateTimePicker() {
+    this.setData({
+      showDateTimePicker: false
+    })
+  },
+
 
 
   // 格式化日期时间显示
