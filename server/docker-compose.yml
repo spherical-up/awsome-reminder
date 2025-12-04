@@ -3,9 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      # 使用构建缓存加速
-      cache_from:
-        - python:3.9-slim
     container_name: reminder-server
     ports:
       - "127.0.0.1:5000:5000"  # 本地访问
