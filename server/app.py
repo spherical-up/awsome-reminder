@@ -680,7 +680,7 @@ def update_reminder_complete(reminder_id):
         }), 500
 
 
-@app.route('/api/auth/login', methods=['POST'])
+@app.route('/api/auth/login', methods=['POST', 'OPTIONS'])
 def login():
     """
     通过 code 换取 openid
@@ -690,15 +690,47 @@ def login():
         "code": "微信登录code"
     }
     """
+    # 处理 OPTIONS 预检请求
+    if request.method == 'OPTIONS':
+        response = jsonify({'errcode': 0})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+        return response
+    
     try:
+        logger.info(f'收到登录请求: {request.json}')
         data = request.json
+        if not data:
+            logger.warning('请求体为空')
+            return jsonify({
+                'errcode': 400,
+                'errmsg': '请求体不能为空'
+            }), 400
+        
         code = data.get('code')
         
         if not code:
+            logger.warning('缺少 code 参数')
             return jsonify({
                 'errcode': 400,
                 'errmsg': '缺少 code 参数'
             }), 400
+        
+        # 验证 APPID 和 APPSECRET 是否配置
+        if not APPID or APPID == 'your-appid':
+            logger.error('APPID 未配置')
+            return jsonify({
+                'errcode': 500,
+                'errmsg': '服务器配置错误：APPID 未配置'
+            }), 500
+        
+        if not APPSECRET or APPSECRET == 'your-appsecret':
+            logger.error('APPSECRET 未配置')
+            return jsonify({
+                'errcode': 500,
+                'errmsg': '服务器配置错误：APPSECRET 未配置'
+            }), 500
         
         # 调用微信接口换取 openid
         url = 'https://api.weixin.qq.com/sns/jscode2session'
@@ -709,11 +741,29 @@ def login():
             'grant_type': 'authorization_code'
         }
         
-        response = requests.get(url, params=params, timeout=10)
-        result = response.json()
+        logger.info(f'调用微信接口换取 openid: appid={APPID}, code={code[:10]}...')
+        
+        try:
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()  # 检查 HTTP 状态码
+            result = response.json()
+        except requests.exceptions.Timeout:
+            logger.error('调用微信接口超时')
+            return jsonify({
+                'errcode': 500,
+                'errmsg': '请求微信接口超时，请稍后重试'
+            }), 500
+        except requests.exceptions.RequestException as e:
+            logger.error(f'调用微信接口失败: {str(e)}')
+            return jsonify({
+                'errcode': 500,
+                'errmsg': f'请求微信接口失败: {str(e)}'
+            }), 500
+        
+        logger.info(f'微信接口响应: {result}')
         
         if 'openid' in result:
-            logger.info(f'用户登录成功: {result["openid"]}')
+            logger.info(f'用户登录成功: openid={result["openid"]}')
             return jsonify({
                 'errcode': 0,
                 'errmsg': 'success',
@@ -723,17 +773,19 @@ def login():
                 }
             })
         else:
-            logger.error(f'换取 openid 失败: {result}')
+            error_code = result.get('errcode', -1)
+            error_msg = result.get('errmsg', '换取 openid 失败')
+            logger.error(f'换取 openid 失败: errcode={error_code}, errmsg={error_msg}')
             return jsonify({
-                'errcode': result.get('errcode', -1),
-                'errmsg': result.get('errmsg', '换取 openid 失败')
+                'errcode': error_code,
+                'errmsg': error_msg
             }), 400
             
     except Exception as e:
-        logger.error(f'登录异常: {str(e)}')
+        logger.error(f'登录异常: {str(e)}', exc_info=True)
         return jsonify({
             'errcode': 500,
-            'errmsg': str(e)
+            'errmsg': f'服务器内部错误: {str(e)}'
         }), 500
 
 

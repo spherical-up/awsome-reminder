@@ -19,7 +19,8 @@ COPY requirements.txt .
 
 # 安装 Python 依赖（使用国内镜像，缓存 pip 缓存）
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt gunicorn
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir gunicorn
 
 # 复制应用代码（放在最后，代码变更时不影响依赖层缓存）
 COPY . .
