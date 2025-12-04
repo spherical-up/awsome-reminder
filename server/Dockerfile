@@ -28,9 +28,11 @@ COPY . .
 # 创建日志目录
 RUN mkdir -p /var/log/reminder-server
 
-# 暴露端口
-EXPOSE 5000
+# 暴露端口（使用5001避免与macOS AirPlay冲突）
+EXPOSE 5001
 
 # 使用 Gunicorn 启动（生产环境）
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "--timeout", "120", "--access-logfile", "/var/log/reminder-server/access.log", "--error-logfile", "/var/log/reminder-server/error.log", "app:app"]
+# 添加 --preload 选项，在 fork worker 之前加载应用（避免重复初始化）
+# 添加 --capture-output 捕获标准输出
+CMD ["gunicorn", "--preload", "-w", "4", "-b", "0.0.0.0:5001", "--timeout", "120", "--access-logfile", "/var/log/reminder-server/access.log", "--error-logfile", "/var/log/reminder-server/error.log", "--capture-output", "--log-level", "info", "app:app"]
 

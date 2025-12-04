@@ -54,9 +54,16 @@
         </view>
       </view>
       <view class="reminder-actions">
-        <view class="share-btn" bindtap="shareReminder" data-reminder="{{item}}" wx:if="{{!item.fromOwner}}">
+        <button 
+          class="share-btn" 
+          open-type="share" 
+          data-reminder-id="{{item.id}}"
+          data-reminder="{{item}}"
+          wx:if="{{!item.fromOwner}}"
+          bindtap="shareReminder"
+        >
           <text class="share-icon">📤</text>
-        </view>
+        </button>
         <view class="delete-btn" bindtap="deleteReminder" data-reminder="{{item}}">
           <text class="delete-icon">🗑️</text>
         </view>

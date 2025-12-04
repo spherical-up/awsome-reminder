@@ -15,6 +15,7 @@ import logging
 from sqlalchemy import create_engine, Column, Integer, String, BigInteger, Boolean, DateTime, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy import text
 import pymysql
 
 # 加载环境变量
@@ -193,20 +194,227 @@ class ReminderAssignment(Base):
 
 # 创建表（如果不存在）
 def ensure_tables_exist():
-    """确保数据库表存在，如果不存在则创建"""
+    """确保数据库表存在，如果不存在则创建，并检查字段是否完整"""
+    logger.info('开始检查/创建数据库表...')
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            logger.info(f'尝试创建表 (第 {attempt + 1}/{max_retries} 次)')
+            # 先尝试创建所有表（如果不存在会自动创建）
+            Base.metadata.create_all(engine, checkfirst=True)
+            logger.info('✅ SQLAlchemy 表创建/检查完成')
+            
+            # 验证表是否真的存在
+            db = SessionLocal()
+            try:
+                # 简单查询验证表是否存在
+                result = db.execute(text("SELECT 1 FROM reminders LIMIT 1"))
+                result.fetchone()  # 确保查询执行
+                db.close()
+                logger.info('✅ 验证表存在成功 - reminders 表已存在')
+                break
+            except Exception as verify_error:
+                db.close()
+                error_msg = str(verify_error)
+                logger.warning(f'验证表存在失败: {error_msg}')
+                if "doesn't exist" in error_msg or "1146" in error_msg:
+                    logger.warning(f'表不存在，尝试强制重新创建 (尝试 {attempt + 1}/{max_retries})')
+                    try:
+                        # 强制删除并重新创建（仅用于开发环境）
+                        # 先尝试删除表（如果存在）
+                        try:
+                            db = SessionLocal()
+                            db.execute(text("DROP TABLE IF EXISTS reminders"))
+                            db.execute(text("DROP TABLE IF EXISTS reminder_assignments"))
+                            db.commit()
+                            db.close()
+                            logger.info('已删除旧表（如果存在）')
+                        except Exception as drop_error:
+                            logger.warning(f'删除旧表时出错（可能不存在）: {str(drop_error)}')
+                        
+                        # 强制创建表
+                        Base.metadata.create_all(engine, checkfirst=False)
+                        logger.info('✅ 强制创建表完成')
+                        
+                        # 再次验证
+                        db = SessionLocal()
+                        try:
+                            db.execute(text("SELECT 1 FROM reminders LIMIT 1"))
+                            db.close()
+                            logger.info('✅ 强制创建后验证成功')
+                            break
+                        except Exception as verify_error2:
+                            db.close()
+                            logger.error(f'强制创建后验证仍然失败: {str(verify_error2)}')
+                            if attempt < max_retries - 1:
+                                continue
+                            else:
+                                raise verify_error2
+                    except Exception as create_error:
+                        logger.error(f'强制创建表失败: {str(create_error)}')
+                        if attempt < max_retries - 1:
+                            continue
+                        else:
+                            raise create_error
+                else:
+                    raise verify_error
+            
+            # 检查并添加缺失的字段（用于表结构升级）
+            db = SessionLocal()
+            try:
+                # 检查 reminders 表是否存在 owner_openid 字段
+                try:
+                    result = db.execute(text("""
+                        SELECT COUNT(*) as cnt
+                        FROM information_schema.COLUMNS 
+                        WHERE TABLE_SCHEMA = :db_name 
+                        AND TABLE_NAME = 'reminders' 
+                        AND COLUMN_NAME = 'owner_openid'
+                    """), {'db_name': DB_NAME})
+                    row = result.fetchone()
+                    has_owner_openid = row[0] > 0 if row else False
+                    
+                    if not has_owner_openid:
+                        logger.info('检测到 reminders 表缺少 owner_openid 字段，正在添加...')
+                        try:
+                            # 先添加字段（允许NULL，避免已有数据问题）
+                            db.execute(text("""
+                                ALTER TABLE reminders 
+                                ADD COLUMN owner_openid VARCHAR(100) DEFAULT ''
+                            """))
+                            # 更新已有数据的 owner_openid
+                            db.execute(text("""
+                                UPDATE reminders 
+                                SET owner_openid = openid 
+                                WHERE owner_openid = '' OR owner_openid IS NULL
+                            """))
+                            # 然后设置为 NOT NULL
+                            db.execute(text("""
+                                ALTER TABLE reminders 
+                                MODIFY COLUMN owner_openid VARCHAR(100) NOT NULL DEFAULT ''
+                            """))
+                            db.commit()
+                            logger.info('✅ 已添加 owner_openid 字段并更新数据')
+                        except Exception as e:
+                            logger.warning(f'添加 owner_openid 字段失败（可能已存在）: {str(e)}')
+                            db.rollback()
+                except Exception as e:
+                    logger.warning(f'检查 owner_openid 字段时出错: {str(e)}')
+                
+                # 检查 shared 字段
+                try:
+                    result = db.execute(text("""
+                        SELECT COUNT(*) as cnt
+                        FROM information_schema.COLUMNS 
+                        WHERE TABLE_SCHEMA = :db_name 
+                        AND TABLE_NAME = 'reminders' 
+                        AND COLUMN_NAME = 'shared'
+                    """), {'db_name': DB_NAME})
+                    row = result.fetchone()
+                    has_shared = row[0] > 0 if row else False
+                    
+                    if not has_shared:
+                        logger.info('检测到 reminders 表缺少 shared 字段，正在添加...')
+                        try:
+                            db.execute(text("""
+                                ALTER TABLE reminders 
+                                ADD COLUMN shared BOOLEAN DEFAULT FALSE
+                            """))
+                            db.commit()
+                            logger.info('✅ 已添加 shared 字段')
+                        except Exception as e:
+                            logger.warning(f'添加 shared 字段失败（可能已存在）: {str(e)}')
+                            db.rollback()
+                except Exception as e:
+                    logger.warning(f'检查 shared 字段时出错: {str(e)}')
+                
+                # 检查索引（如果字段存在）
+                if has_owner_openid:
+                    try:
+                        result = db.execute(text("""
+                            SELECT COUNT(*) as cnt
+                            FROM information_schema.STATISTICS 
+                            WHERE TABLE_SCHEMA = :db_name 
+                            AND TABLE_NAME = 'reminders' 
+                            AND INDEX_NAME = 'idx_owner_openid'
+                        """), {'db_name': DB_NAME})
+                        row = result.fetchone()
+                        has_index = row[0] > 0 if row else False
+                        
+                        if not has_index:
+                            logger.info('检测到 reminders 表缺少 idx_owner_openid 索引，正在添加...')
+                            try:
+                                db.execute(text("""
+                                    CREATE INDEX idx_owner_openid ON reminders(owner_openid)
+                                """))
+                                db.commit()
+                                logger.info('✅ 已添加 idx_owner_openid 索引')
+                            except Exception as e:
+                                logger.warning(f'添加索引失败（可能已存在）: {str(e)}')
+                                db.rollback()
+                    except Exception as e:
+                        logger.warning(f'检查索引时出错: {str(e)}')
+                    
+            except Exception as e:
+                logger.warning(f'检查表结构时出错: {str(e)}')
+            finally:
+                db.close()
+            
+            break  # 成功则退出循环
+            
+        except Exception as e:
+            logger.error(f'❌ 数据库表创建失败 (尝试 {attempt + 1}/{max_retries}): {str(e)}')
+            if attempt == max_retries - 1:
+                logger.error('请检查数据库配置和连接')
+                logger.warning('表创建失败，但应用将继续运行，请手动检查数据库')
+            else:
+                import time
+                time.sleep(1)  # 等待1秒后重试
+
+# 确保表存在的辅助函数（在数据库操作失败时调用）
+def handle_table_error(error, operation_name="数据库操作"):
+    """处理表不存在的错误，自动创建表"""
+    error_msg = str(error)
+    if "doesn't exist" in error_msg or "1146" in error_msg or "Table" in error_msg and "doesn't exist" in error_msg:
+        logger.warning(f'检测到表不存在错误 ({operation_name})，尝试自动创建表')
+        try:
+            ensure_tables_exist()
+            logger.info(f'✅ 表创建完成，{operation_name} 可以重试')
+            return True
+        except Exception as create_error:
+            logger.error(f'自动创建表失败: {str(create_error)}')
+            return False
+    return False
+
+# 延迟初始化：避免在导入时执行，只在应用启动时执行
+# 在 Gunicorn 环境下，这些会在 worker 启动时执行
+# 在直接运行 app.py 时，会在 if __name__ == '__main__' 中执行
+
+# 初始化调度器（延迟到应用启动时）
+scheduler = None
+
+def init_app():
+    """初始化应用（数据库表、调度器等）"""
+    global scheduler
     try:
-        Base.metadata.create_all(engine)
-        logger.info('✅ 数据库表创建/检查成功')
+        # 确保表存在
+        ensure_tables_exist()
+        
+        # 初始化调度器
+        if scheduler is None:
+            scheduler = BackgroundScheduler()
+            scheduler.start()
+            logger.info('✅ 调度器启动成功')
     except Exception as e:
-        logger.error(f'❌ 数据库表创建失败: {str(e)}')
-        logger.error('请检查数据库配置和连接')
-        raise
+        logger.error(f'❌ 应用初始化失败: {str(e)}')
+        logger.error(f'错误详情: {type(e).__name__}: {str(e)}')
+        import traceback
+        logger.error(f'堆栈跟踪:\n{traceback.format_exc()}')
+        # 不抛出异常，允许应用继续运行
+        logger.warning('应用将继续运行，但某些功能可能不可用')
 
-ensure_tables_exist()
-
-# 初始化调度器
-scheduler = BackgroundScheduler()
-scheduler.start()
+# 在 Gunicorn 环境下，使用 post_fork 钩子初始化
+# 对于直接运行，在 if __name__ == '__main__' 中调用
 
 
 def get_access_token():
@@ -385,6 +593,15 @@ def schedule_reminder(reminder):
             except Exception as e:
                 logger.error(f'发送提醒异常: ID={reminder["id"]}, 错误: {str(e)}', exc_info=True)
         
+        # 确保调度器已初始化
+        global scheduler
+        if scheduler is None:
+            logger.warning('调度器未初始化，尝试初始化...')
+            init_app()
+            if scheduler is None:
+                logger.error('调度器初始化失败，无法安排提醒任务')
+                return
+        
         # 添加定时任务
         job_id = f"reminder_{reminder['id']}"
         scheduler.add_job(
@@ -453,22 +670,44 @@ def create_reminder():
         owner_openid = data['openid']  # 创建者就是当前用户
         db = SessionLocal()
         try:
-            reminder = Reminder(
-                id=reminder_id,
-                openid=data['openid'],  # 当前拥有者
-                owner_openid=owner_openid,  # 创建者
-                title=thing1,  # 兼容字段，使用 thing1
-                thing1=thing1,  # 事项主题
-                thing4=thing4,  # 事项描述
-                time=time_str,  # 事项时间
-                reminder_time=data['reminderTime'],
-                enable_subscribe=data.get('enableSubscribe', False),
-                status='pending',
-                completed=False,
-                shared=False
-            )
-            db.add(reminder)
-            db.commit()
+            try:
+                reminder = Reminder(
+                    id=reminder_id,
+                    openid=data['openid'],  # 当前拥有者
+                    owner_openid=owner_openid,  # 创建者
+                    title=thing1,  # 兼容字段，使用 thing1
+                    thing1=thing1,  # 事项主题
+                    thing4=thing4,  # 事项描述
+                    time=time_str,  # 事项时间
+                    reminder_time=data['reminderTime'],
+                    enable_subscribe=data.get('enableSubscribe', False),
+                    status='pending',
+                    completed=False,
+                    shared=False
+                )
+                db.add(reminder)
+                db.commit()
+            except Exception as add_error:
+                # 如果表不存在，尝试创建后重试
+                if handle_table_error(add_error, "创建提醒"):
+                    reminder = Reminder(
+                        id=reminder_id,
+                        openid=data['openid'],
+                        owner_openid=owner_openid,
+                        title=thing1,
+                        thing1=thing1,
+                        thing4=thing4,
+                        time=time_str,
+                        reminder_time=data['reminderTime'],
+                        enable_subscribe=data.get('enableSubscribe', False),
+                        status='pending',
+                        completed=False,
+                        shared=False
+                    )
+                    db.add(reminder)
+                    db.commit()
+                else:
+                    raise add_error
             
             # 转换为字典用于后续处理
             reminder_dict = reminder.to_dict()
@@ -601,10 +840,12 @@ def reminder_detail(reminder_id):
                 if reminder.enable_subscribe and reminder.reminder_time:
                     # 如果开启了订阅，需要重新安排定时任务
                     # 先取消旧任务
-                    try:
-                        scheduler.remove_job(f"reminder_{reminder_id}")
-                    except:
-                        pass
+                    global scheduler
+                    if scheduler is not None:
+                        try:
+                            scheduler.remove_job(f"reminder_{reminder_id}")
+                        except:
+                            pass
                     
                     # 重新安排任务
                     reminder_dict = reminder.to_dict()
@@ -665,10 +906,12 @@ def delete_reminder(reminder_id):
             db.commit()
             
             # 取消定时任务
-            try:
-                scheduler.remove_job(f"reminder_{reminder_id}")
-            except:
-                pass
+            global scheduler
+            if scheduler is not None:
+                try:
+                    scheduler.remove_job(f"reminder_{reminder_id}")
+                except:
+                    pass
             
             logger.info(f'删除提醒成功: {reminder_id}')
             
@@ -716,9 +959,18 @@ def get_reminders():
         db = SessionLocal()
         try:
             # 查询用户拥有的提醒列表（openid匹配，包括自己创建的和被分配的）
-            reminders = db.query(Reminder).filter(
-                Reminder.openid == openid
-            ).order_by(Reminder.create_time.desc()).all()
+            try:
+                reminders = db.query(Reminder).filter(
+                    Reminder.openid == openid
+                ).order_by(Reminder.create_time.desc()).all()
+            except Exception as query_error:
+                # 如果表不存在，尝试创建后重试
+                if handle_table_error(query_error, "获取提醒列表"):
+                    reminders = db.query(Reminder).filter(
+                        Reminder.openid == openid
+                    ).order_by(Reminder.create_time.desc()).all()
+                else:
+                    raise query_error
             
             # 转换为字典列表
             user_reminders = []
@@ -1451,10 +1703,47 @@ def get_assigned_reminders():
         }), 500
 
 
+# Gunicorn 启动时的钩子函数
+def on_starting(server):
+    """Gunicorn 启动时的回调（在主进程中执行）"""
+    logger.info('=' * 60)
+    logger.info('Gunicorn 主进程启动中...')
+    logger.info('=' * 60)
+
+def when_ready(server):
+    """所有 worker 就绪时的回调"""
+    logger.info('=' * 60)
+    logger.info('所有 Worker 已就绪')
+    logger.info('=' * 60)
+
+def post_fork(server, worker):
+    """Worker 进程 fork 后的回调（在每个 worker 中执行）"""
+    logger.info(f'Worker {worker.pid} 启动中...')
+    try:
+        init_app()
+        logger.info(f'✅ Worker {worker.pid} 初始化完成')
+    except Exception as e:
+        logger.error(f'❌ Worker {worker.pid} 初始化失败: {str(e)}')
+        import traceback
+        logger.error(f'堆栈跟踪:\n{traceback.format_exc()}')
+
+def worker_int(worker):
+    """Worker 接收到 INT 信号时的回调"""
+    logger.info(f'Worker {worker.pid} 接收到 INT 信号')
+
 if __name__ == '__main__':
-    logger.info('启动 Flask 服务...')
+    logger.info('=' * 60)
+    logger.info('启动 Flask 服务（开发模式）...')
     logger.info(f'APPID: {APPID}')
     logger.info(f'模板ID: {TEMPLATE_ID}')
+    logger.info('=' * 60)
+    
+    # 初始化应用
+    init_app()
+    
+    logger.info('=' * 60)
+    logger.info('Flask 服务启动中...')
+    logger.info('=' * 60)
     
     # 开发环境运行（使用 5001 端口，避免与 macOS AirPlay 冲突）
     app.run(host='0.0.0.0', port=5001, debug=True)

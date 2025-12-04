@@ -12,7 +12,8 @@ Page({
     totalCount: 0,
     completedCount: 0,
     loading: false,
-    shareReminderId: null  // 用于分享的提醒ID
+    shareReminderId: null,  // 用于分享的提醒ID
+    currentShareReminder: null  // 当前正在分享的提醒信息
   },
 
   onLoad(options) {
@@ -204,7 +205,7 @@ Page({
     })
   },
 
-  // 分享提醒给好友
+  // 分享提醒给好友（点击分享按钮时调用，用于权限验证）
   async shareReminder(e) {
     const reminder = e.currentTarget.dataset.reminder
     if (!reminder || !reminder.id) {
@@ -238,41 +239,21 @@ Page({
         return
       }
       
-      // 调用后端API记录分享（后端会再次验证权限）
-      await api.shareReminder(reminder.id, openid)
-      
       // 设置分享数据，用于onShareAppMessage
       this.setData({
-        shareReminderId: reminder.id
+        shareReminderId: reminder.id,
+        currentShareReminder: reminder
       })
       
-      // 显示分享菜单
-      wx.showShareMenu({
-        withShareTicket: true,
-        menus: ['shareAppMessage', 'shareTimeline']
-      })
-      
+      // 注意：使用 open-type="share" 的 button 会自动触发分享菜单
+      // 不需要调用 wx.showShareMenu
+    } catch (err) {
+      console.error('分享提醒验证失败', err)
       wx.showToast({
-        title: '可以多次分享给不同好友',
+        title: '分享验证失败',
         icon: 'none',
         duration: 2000
       })
-    } catch (err) {
-      console.error('分享提醒失败', err)
-      // 处理后端返回的权限错误
-      if (err.message && err.message.includes('无权') || err.message.includes('403')) {
-        wx.showToast({
-          title: '只有创建者可以分享',
-          icon: 'none',
-          duration: 2000
-        })
-      } else {
-        wx.showToast({
-          title: err.message || '分享失败',
-          icon: 'none',
-          duration: 2000
-        })
-      }
     }
   },
 
@@ -366,14 +347,35 @@ Page({
 
   // 页面分享配置
   onShareAppMessage(options) {
+    // 获取分享的提醒ID
     const reminderId = options.from === 'button' 
       ? (options.target.dataset.reminderId || this.data.shareReminderId)
       : this.data.shareReminderId
     
     if (reminderId) {
+      // 异步调用后端API记录分享（不阻塞分享流程）
+      api.getUserOpenid().then(openid => {
+        return api.shareReminder(reminderId, openid)
+      }).then(() => {
+        console.log('分享记录成功')
+      }).catch(err => {
+        console.error('分享记录失败:', err)
+        // 记录失败不影响分享流程
+      })
+      
+      // 获取提醒信息用于分享标题
+      const reminder = this.data.currentShareReminder || 
+        this.data.reminders.find(r => r.id === reminderId)
+      
+      const shareTitle = reminder 
+        ? `[提醒] ${reminder.thing1 || reminder.title || '我有一个提醒想分享给你'}`
+        : '我有一个提醒想分享给你'
+      
+      const assignerOpenid = reminder?.ownerOpenid || this.data.currentShareReminder?.ownerOpenid || ''
+      
       return {
-        title: '我有一个提醒想分享给你',
-        path: `/pages/index/index?reminder_id=${reminderId}&action=accept`,
+        title: shareTitle,
+        path: `/pages/index/index?reminder_id=${reminderId}&action=accept&assigner_openid=${assignerOpenid}`,
         imageUrl: '' // 可选：分享图片
       }
     }

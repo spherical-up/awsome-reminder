@@ -8,8 +8,8 @@ services:
         - python:3.9-slim
     container_name: reminder-server
     ports:
-      - "127.0.0.1:5000:5000"  # 本地访问
-      # - "10.0.1.130:5000:5000"  # 局域网访问（开发环境）
+      - "127.0.0.1:5001:5001"  # 本地访问（使用5001避免与AirPlay冲突）
+      - "192.168.31.100:5001:5001"  # 局域网访问（开发环境
     env_file:
       - .env
     # 添加 extra_hosts 让容器能够访问宿主机的 localhost
@@ -23,7 +23,7 @@ services:
       - .:/app  # 挂载代码目录，代码更新后无需重新构建
     restart: always
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:5001/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -4,7 +4,7 @@
 // 配置服务端地址（开发环境）
 // 注意：微信开发者工具不支持 localhost，需要使用本地 IP
 // 获取本地 IP: ifconfig | grep "inet " | grep -v 127.0.0.1
-// const API_BASE_URL = 'http://10.0.1.130:5001/api'
+// const API_BASE_URL = 'http://192.168.31.100:5001/api'
 
 // 生产环境配置
 const API_BASE_URL = 'https://www.6ht6.com/api'
