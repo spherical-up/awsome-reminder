@@ -12,7 +12,7 @@ services:
       # 开发环境：根据当前IP动态配置局域网访问
       # 获取当前IP: ipconfig getifaddr en0 (macOS) 或 hostname -I (Linux)
       # 然后取消注释下面一行并替换IP地址
-      - "10.0.1.130:5001:5001"  # 局域网访问（开发环境，IP可能变化）
+      - "192.168.31.100:5001:5001"  # 局域网访问（开发环境，IP可能变化）
       # 生产环境：使用 docker-compose.prod.yml，只绑定 127.0.0.1，通过 Nginx 反向代理
     env_file:
       - .env

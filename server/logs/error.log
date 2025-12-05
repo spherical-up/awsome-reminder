@@ -10489,3 +10489,43 @@ INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5f
 INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
 INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
 INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 15:58:03 - app - INFO - ✅ 数据库 reminder_db 已存在
+[2025-12-05 15:58:03 +0000] [1] [INFO] Starting gunicorn 23.0.0
+[2025-12-05 15:58:03 +0000] [1] [INFO] Listening at: http://0.0.0.0:5001 (1)
+[2025-12-05 15:58:03 +0000] [1] [INFO] Using worker: sync
+[2025-12-05 15:58:03 +0000] [7] [INFO] Booting worker with pid: 7
+[2025-12-05 15:58:03 +0000] [8] [INFO] Booting worker with pid: 8
+[2025-12-05 15:58:03 +0000] [9] [INFO] Booting worker with pid: 9
+[2025-12-05 15:58:03 +0000] [10] [INFO] Booting worker with pid: 10
+2025-12-05 15:58:09 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 15:58:09 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:00:04 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:00:04 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:02:39 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:02:39 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:19:00 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:19:00 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:19:12 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:19:12 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:19:25 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:19:25 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:24:29 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:24:29 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:26:06 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:26:06 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:26:54 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:27:11 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:27:11 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:27:38 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:28:05 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:28:12 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:28:44 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:28:44 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:28:46 - app - INFO - 提醒分享成功: ID=o4zIw5fpKcN0weRXiJHjPB9vd25Y_1764951560332, owner=o4zIw5fpKcN0weRXiJHjPB9vd25Y (可多次分享)
+2025-12-05 16:28:50 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:29:00 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:29:00 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:29:03 - app - INFO - 提醒分享成功: ID=o4zIw5fpKcN0weRXiJHjPB9vd25Y_1764951560332, owner=o4zIw5fpKcN0weRXiJHjPB9vd25Y (可多次分享)
+2025-12-05 16:29:07 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:29:37 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+2025-12-05 16:29:37 - app - INFO - 收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])

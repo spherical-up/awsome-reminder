@@ -1,19 +1,32 @@
 /* index.wxss - 丰富设计风格 */
 .container {
-  min-height: 100vh;
+  height: 100vh;
   padding-bottom: 180rpx;
   background: #FFFFFF;
+  box-sizing: border-box;
+  overflow-y: auto;
+  /* 优化滚动性能 */
+  -webkit-overflow-scrolling: touch;
+  overflow-scrolling: touch;
 }
 
 /* 头部区域 */
 .header {
-  position: relative;
+  position: sticky;
+  top: 0;
+  z-index: 100;
   background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
   padding: 30rpx;
   border-bottom-left-radius: 32rpx;
   border-bottom-right-radius: 32rpx;
   box-shadow: 0 4rpx 20rpx rgba(135, 206, 250, 0.2);
   overflow: hidden;
+  /* 优化渲染性能，减少颤动 */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 .header::before {

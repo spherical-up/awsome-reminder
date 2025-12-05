@@ -1,8 +1,10 @@
 /* add.wxss */
 .container {
-  min-height: 100vh;
+  height: 100vh;
   background: #f7f8fa;
   padding: 32rpx 0;
+  box-sizing: border-box;
+  overflow-y: auto;
 }
 
 /* 提交按钮区域 */

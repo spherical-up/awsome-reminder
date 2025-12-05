@@ -18,7 +18,7 @@ function getLocalIP() {
   //    const api = require('./utils/api.js')
   //    api.setDevServerIP('新的IP地址')
   // 2. 或者修改下面的默认值
-  const defaultIP = '10.0.1.130'
+  const defaultIP = '192.168.31.100'
   
   // 常见的内网 IP 段（用于自动检测，可选）
   // 注意：小程序无法直接获取本机 IP，这里提供默认值和存储机制
@@ -31,7 +31,7 @@ function getLocalIP() {
 function detectDevServerIP() {
   return new Promise((resolve) => {
     const commonIPs = [
-      '10.0.1.130',  // 当前默认 IP
+      '192.168.31.100',  // 当前默认 IP
       '192.168.31.100',  // 之前使用过的 IP
       '192.168.1.100',
       '192.168.0.100',

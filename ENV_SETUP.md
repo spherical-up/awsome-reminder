@@ -36,7 +36,7 @@ docker-compose -f docker-compose.yml up -d
 ```
 
 **开发环境特点**：
-- 端口映射：`127.0.0.1:5001` + 局域网IP（如 `10.0.1.130:5001`）
+- 端口映射：`127.0.0.1:5001` + 局域网IP（如 `192.168.31.100:5001`）
 - 代码热更新：挂载代码目录，修改代码无需重建镜像
 - 无资源限制
 
@@ -44,7 +44,7 @@ docker-compose -f docker-compose.yml up -d
 
 **自动模式（推荐）**：
 - 在微信开发者工具中运行，自动使用开发环境 API
-- API 地址：`http://10.0.1.130:5001/api`（根据当前 IP 自动调整）
+- API 地址：`http://192.168.31.100:5001/api`（根据当前 IP 自动调整）
 
 **手动设置 IP**（如果 IP 变化）：
 ```javascript
@@ -418,7 +418,7 @@ docker-compose -f docker-compose.prod.yml up -d # 生产环境
 
 | 环境 | 前端配置 | 后端启动命令 | API 地址 |
 |------|---------|------------|---------|
-| **开发环境** | 自动（开发者工具） | `docker-compose up -d` | `http://10.0.1.130:5001/api` |
+| **开发环境** | 自动（开发者工具） | `docker-compose up -d` | `http://192.168.31.100:5001/api` |
 | **生产环境** | 自动（正式版） | `docker-compose -f docker-compose.prod.yml up -d` | `https://www.6ht6.com/api` |
 
 ---
