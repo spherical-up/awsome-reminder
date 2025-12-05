@@ -33,7 +33,15 @@ CORS(app, resources={
 }, supports_credentials=True)
 
 # 配置日志
-logging.basicConfig(level=logging.INFO)
+# 确保日志输出到标准输出，方便 docker compose logs 查看
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[
+        logging.StreamHandler()  # 输出到标准输出
+    ]
+)
 logger = logging.getLogger(__name__)
 
 # 微信小程序配置（从环境变量读取）

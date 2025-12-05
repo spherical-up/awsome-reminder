@@ -32,7 +32,7 @@ RUN mkdir -p /var/log/reminder-server
 EXPOSE 5001
 
 # 使用 Gunicorn 启动（生产环境）
-# 添加 --preload 选项，在 fork worker 之前加载应用（避免重复初始化）
-# 添加 --capture-output 捕获标准输出
-CMD ["gunicorn", "--preload", "-w", "4", "-b", "0.0.0.0:5001", "--timeout", "120", "--access-logfile", "/var/log/reminder-server/access.log", "--error-logfile", "/var/log/reminder-server/error.log", "--capture-output", "--log-level", "info", "app:app"]
+# 日志输出到标准输出（-），方便 docker compose logs 查看
+# 如果需要保存日志文件，可以通过 Docker 日志驱动或挂载卷来保存
+CMD ["gunicorn", "--preload", "-w", "4", "-b", "0.0.0.0:5001", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "--capture-output", "--log-level", "info", "app:app"]
 
