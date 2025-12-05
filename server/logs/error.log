@@ -10437,3 +10437,55 @@ INFO:app:✅ SQLAlchemy 表创建/检查完成
 INFO:app:✅ 验证表存在成功 - reminders 表已存在
 INFO:app:✅ 表创建完成，获取提醒列表 可以重试
 INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到创建提醒请求: {'openid': 'o4zIw5fpKcN0weRXiJHjPB9vd25Y', 'title': '哈哈我在', 'thing1': '哈哈我在', 'thing4': '不用来了哦你', 'time': '2025-12-05 13:52:00', 'reminderTime': 1764913920000, 'enableSubscribe': True}
+INFO:app:提醒开启了订阅，开始安排定时任务: ID=o4zIw5fpKcN0weRXiJHjPB9vd25Y_1764913920000
+INFO:app:安排提醒任务: ID=o4zIw5fpKcN0weRXiJHjPB9vd25Y_1764913920000, 提醒时间=2025-12-05 05:52:00, 当前时间=2025-12-05 05:51:50.641918
+WARNING:app:调度器未初始化，尝试初始化...
+INFO:app:开始检查/创建数据库表...
+INFO:app:尝试创建表 (第 1/3 次)
+INFO:app:✅ SQLAlchemy 表创建/检查完成
+INFO:app:✅ 验证表存在成功 - reminders 表已存在
+INFO:apscheduler.scheduler:Scheduler started
+INFO:app:✅ 调度器启动成功
+INFO:apscheduler.scheduler:Added job "schedule_reminder.<locals>.send_reminder" to job store "default"
+INFO:app:✅ 已安排提醒任务: ID=o4zIw5fpKcN0weRXiJHjPB9vd25Y_1764913920000, 任务ID=reminder_o4zIw5fpKcN0weRXiJHjPB9vd25Y_1764913920000, 执行时间=2025-12-05 05:52:00, 当前时间=2025-12-05 05:51:50.641918
+INFO:app:✅ 创建提醒成功: ID=o4zIw5fpKcN0weRXiJHjPB9vd25Y_1764913920000, 标题=哈哈我在, 提醒时间=2025-12-05 13:52:00
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:apscheduler.executors.default:Running job "schedule_reminder.<locals>.send_reminder (trigger: date[2025-12-05 05:52:00 UTC], next run at: 2025-12-05 05:52:00 UTC)" (scheduled at 2025-12-05 05:52:00+00:00)
+INFO:apscheduler.scheduler:Removed job reminder_o4zIw5fpKcN0weRXiJHjPB9vd25Y_1764913920000
+INFO:app:开始发送提醒: ID=o4zIw5fpKcN0weRXiJHjPB9vd25Y_1764913920000, openid=o4zIw5fpKcN0weRXiJHjPB9vd25Y
+INFO:app:模板数据: {'thing1': {'value': '哈哈我在'}, 'time2': {'value': '2025-12-05 13:52:00'}, 'thing4': {'value': '不用来了哦你'}}
+INFO:app:获取 access_token 成功
+INFO:app:准备发送订阅消息: openid=o4zIw5fpKcN0weRXiJHjPB9vd25Y, template_id=is4mEq0nlt5fJRn-Pflnr-wJxoCKOz9qty857QmH7Bw
+INFO:app:请求数据: {'touser': 'o4zIw5fpKcN0weRXiJHjPB9vd25Y', 'template_id': 'is4mEq0nlt5fJRn-Pflnr-wJxoCKOz9qty857QmH7Bw', 'page': 'pages/index/index', 'data': {'thing1': {'value': '哈哈我在'}, 'time2': {'value': '2025-12-05 13:52:00'}, 'thing4': {'value': '不用来了哦你'}}}
+INFO:app:微信API响应: {'errcode': 0, 'errmsg': 'ok', 'msgid': 4283586510030733320}
+INFO:app:✅ 发送订阅消息成功: openid=o4zIw5fpKcN0weRXiJHjPB9vd25Y
+INFO:app:订阅消息发送结果: {'errcode': 0, 'errmsg': 'ok', 'msgid': 4283586510030733320}
+INFO:app:✅ 提醒发送成功: ID=o4zIw5fpKcN0weRXiJHjPB9vd25Y_1764913920000, openid=o4zIw5fpKcN0weRXiJHjPB9vd25Y
+INFO:apscheduler.executors.default:Job "schedule_reminder.<locals>.send_reminder (trigger: date[2025-12-05 05:52:00 UTC], next run at: 2025-12-05 05:52:00 UTC)" executed successfully
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])

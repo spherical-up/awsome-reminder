@@ -196,70 +196,93 @@ class ReminderAssignment(Base):
 def ensure_tables_exist():
     """确保数据库表存在，如果不存在则创建，并检查字段是否完整"""
     logger.info('开始检查/创建数据库表...')
-    max_retries = 3
-    for attempt in range(max_retries):
-        try:
-            logger.info(f'尝试创建表 (第 {attempt + 1}/{max_retries} 次)')
-            # 先尝试创建所有表（如果不存在会自动创建）
-            Base.metadata.create_all(engine, checkfirst=True)
-            logger.info('✅ SQLAlchemy 表创建/检查完成')
-            
-            # 验证表是否真的存在
-            db = SessionLocal()
-            try:
-                # 简单查询验证表是否存在
-                result = db.execute(text("SELECT 1 FROM reminders LIMIT 1"))
-                result.fetchone()  # 确保查询执行
-                db.close()
-                logger.info('✅ 验证表存在成功 - reminders 表已存在')
-                break
-            except Exception as verify_error:
-                db.close()
-                error_msg = str(verify_error)
-                logger.warning(f'验证表存在失败: {error_msg}')
-                if "doesn't exist" in error_msg or "1146" in error_msg:
-                    logger.warning(f'表不存在，尝试强制重新创建 (尝试 {attempt + 1}/{max_retries})')
-                    try:
-                        # 强制删除并重新创建（仅用于开发环境）
-                        # 先尝试删除表（如果存在）
-                        try:
-                            db = SessionLocal()
-                            db.execute(text("DROP TABLE IF EXISTS reminders"))
-                            db.execute(text("DROP TABLE IF EXISTS reminder_assignments"))
-                            db.commit()
-                            db.close()
-                            logger.info('已删除旧表（如果存在）')
-                        except Exception as drop_error:
-                            logger.warning(f'删除旧表时出错（可能不存在）: {str(drop_error)}')
-                        
-                        # 强制创建表
-                        Base.metadata.create_all(engine, checkfirst=False)
-                        logger.info('✅ 强制创建表完成')
-                        
-                        # 再次验证
-                        db = SessionLocal()
-                        try:
-                            db.execute(text("SELECT 1 FROM reminders LIMIT 1"))
-                            db.close()
-                            logger.info('✅ 强制创建后验证成功')
-                            break
-                        except Exception as verify_error2:
-                            db.close()
-                            logger.error(f'强制创建后验证仍然失败: {str(verify_error2)}')
-                            if attempt < max_retries - 1:
-                                continue
-                            else:
-                                raise verify_error2
-                    except Exception as create_error:
-                        logger.error(f'强制创建表失败: {str(create_error)}')
+    
+    # 先检查表是否已存在，避免重复创建
+    db = SessionLocal()
+    try:
+        # 检查 reminders 表是否存在
+        result = db.execute(text("""
+            SELECT COUNT(*) as cnt
+            FROM information_schema.TABLES 
+            WHERE TABLE_SCHEMA = :db_name 
+            AND TABLE_NAME = 'reminders'
+        """), {'db_name': DB_NAME})
+        row = result.fetchone()
+        table_exists = row[0] > 0 if row else False
+        
+        if table_exists:
+            logger.info('✅ reminders 表已存在，跳过创建')
+            db.close()
+            # 表已存在，直接进入字段检查流程
+        else:
+            db.close()
+            logger.info('reminders 表不存在，开始创建...')
+            # 表不存在，需要创建
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    logger.info(f'尝试创建表 (第 {attempt + 1}/{max_retries} 次)')
+                    # 先尝试创建所有表（如果不存在会自动创建）
+                    Base.metadata.create_all(engine, checkfirst=True)
+                    logger.info('✅ SQLAlchemy 表创建/检查完成')
+                    break
+                except Exception as create_error:
+                    error_msg = str(create_error)
+                    # 如果表已存在（可能是其他进程刚创建的），忽略错误
+                    if "already exists" in error_msg or "1050" in error_msg:
+                        logger.info('✅ 表已存在（可能由其他进程创建），跳过创建')
+                        break
+                    else:
+                        logger.warning(f'创建表失败 (尝试 {attempt + 1}/{max_retries}): {error_msg}')
                         if attempt < max_retries - 1:
+                            import time
+                            time.sleep(1)  # 等待1秒后重试
                             continue
                         else:
                             raise create_error
+    except Exception as check_error:
+        db.close()
+        error_msg = str(check_error)
+        # 如果检查表存在时出错，尝试直接创建（可能是权限问题）
+        logger.warning(f'检查表存在时出错: {error_msg}，尝试直接创建表')
+        try:
+            Base.metadata.create_all(engine, checkfirst=True)
+            logger.info('✅ SQLAlchemy 表创建/检查完成')
+        except Exception as create_error:
+            error_msg = str(create_error)
+            # 如果表已存在，忽略错误
+            if "already exists" in error_msg or "1050" in error_msg:
+                logger.info('✅ 表已存在，跳过创建')
+            else:
+                logger.error(f'数据库表创建失败: {create_error}')
+                raise create_error
+    
+    # 验证表是否真的存在（简单验证）
+    try:
+        db = SessionLocal()
+        result = db.execute(text("SELECT 1 FROM reminders LIMIT 1"))
+        result.fetchone()  # 确保查询执行
+        db.close()
+        logger.info('✅ 验证表存在成功 - reminders 表已存在')
+    except Exception as verify_error:
+        db.close()
+        error_msg = str(verify_error)
+        logger.error(f'验证表存在失败: {error_msg}')
+        # 如果表真的不存在，尝试最后一次创建
+        if "doesn't exist" in error_msg or "1146" in error_msg:
+            logger.warning('表验证失败，尝试最后一次创建...')
+            try:
+                Base.metadata.create_all(engine, checkfirst=True)
+                logger.info('✅ 最后创建尝试完成')
+            except Exception as create_error:
+                error_msg = str(create_error)
+                if "already exists" in error_msg or "1050" in error_msg:
+                    logger.info('✅ 表已存在（可能由其他进程创建）')
                 else:
-                    raise verify_error
-            
-            # 检查并添加缺失的字段（用于表结构升级）
+                    logger.error(f'最后创建尝试失败: {create_error}')
+                    raise create_error
+    
+    # 检查并添加缺失的字段（用于表结构升级）
             db = SessionLocal()
             try:
                 # 检查 reminders 表是否存在 owner_openid 字段

@@ -100,52 +100,79 @@ function getAPIBaseURL() {
     const accountInfo = wx.getAccountInfoSync()
     const envVersion = accountInfo.miniProgram.envVersion
     
+    console.log('========== API 环境检测 ==========')
     console.log('当前小程序环境:', envVersion)
-    console.log('账号信息:', accountInfo)
+    console.log('账号信息:', JSON.stringify(accountInfo, null, 2))
     
     // envVersion 可能的值：
     // - 'develop': 开发版（开发者工具）
-    // - 'trial': 体验版（通常也应该使用生产环境，除非特别配置）
-    // - 'release': 正式版
+    // - 'trial': 体验版（必须使用生产环境）
+    // - 'release': 正式版（必须使用生产环境）
     
-    // 只有正式版使用生产环境
-    if (envVersion === 'release') {
-      console.log('✅ 检测到正式版，使用生产环境 API')
-      return PROD_API_URL
-    } 
-    // 体验版默认也使用生产环境（可根据需要调整）
-    else if (envVersion === 'trial') {
-      // 体验版：可以选择使用生产环境或开发环境
-      // 如果需要体验版也使用生产环境，取消下面的注释
-      console.log('⚠️ 检测到体验版，使用生产环境 API')
-      return PROD_API_URL
-      
-      // 如果需要体验版使用开发环境，取消下面的注释
-      // const localIP = getLocalIP()
-      // return `http://${localIP}:5001/api`
-    }
     // 开发版使用开发环境
-    else if (envVersion === 'develop') {
+    if (envVersion === 'develop') {
       console.log('🔧 检测到开发版，使用开发环境 API')
       const localIP = getLocalIP()
-      return `http://${localIP}:5001/api`
+      const devURL = `http://${localIP}:5001/api`
+      console.log('开发环境 API 地址:', devURL)
+      return devURL
+    }
+    // 正式版和体验版都使用生产环境（强制）
+    else if (envVersion === 'release' || envVersion === 'trial') {
+      const envName = envVersion === 'release' ? '正式版' : '体验版'
+      console.log(`✅ 检测到${envName}，强制使用生产环境 API`)
+      console.log('生产环境 API 地址:', PROD_API_URL)
+      console.log('================================')
+      return PROD_API_URL
     }
     // 未知环境，默认使用生产环境（更安全）
     else {
       console.warn('⚠️ 未知环境版本，默认使用生产环境:', envVersion)
+      console.log('生产环境 API 地址:', PROD_API_URL)
+      console.log('================================')
       return PROD_API_URL
     }
   } catch (e) {
     // 如果获取失败，默认使用生产环境（更安全，避免开发环境泄露）
     console.error('❌ 获取环境信息失败，默认使用生产环境:', e)
+    console.log('生产环境 API 地址:', PROD_API_URL)
+    console.log('================================')
     return PROD_API_URL
   }
 }
 
-const API_BASE_URL = getAPIBaseURL()
+let API_BASE_URL = getAPIBaseURL()
+
+// 安全验证：确保体验版和正式版不会使用开发环境地址
+try {
+  const accountInfo = wx.getAccountInfoSync()
+  const envVersion = accountInfo.miniProgram.envVersion
+  
+  // 如果检测到体验版或正式版，但使用的是 HTTP 地址（非 localhost），强制使用生产环境
+  if ((envVersion === 'trial' || envVersion === 'release') && 
+      API_BASE_URL.startsWith('http://') && 
+      !API_BASE_URL.includes('localhost') && 
+      !API_BASE_URL.includes('127.0.0.1')) {
+    console.error('❌ 安全警告：体验版/正式版检测到开发环境地址，强制切换到生产环境')
+    console.log('原地址:', API_BASE_URL)
+    API_BASE_URL = 'https://www.6ht6.com/api'
+    console.log('已强制切换到生产环境:', API_BASE_URL)
+  }
+} catch (e) {
+  // 如果检测失败，但当前使用的是 HTTP 地址，也强制使用生产环境（更安全）
+  if (API_BASE_URL.startsWith('http://') && 
+      !API_BASE_URL.includes('localhost') && 
+      !API_BASE_URL.includes('127.0.0.1')) {
+    console.error('❌ 环境检测失败，但检测到非本地 HTTP 地址，强制使用生产环境')
+    API_BASE_URL = 'https://www.6ht6.com/api'
+    console.log('已强制切换到生产环境:', API_BASE_URL)
+  }
+}
 
 // 输出当前使用的 API 地址（开发时可见）
+console.log('========== 最终 API 地址 ==========')
 console.log('当前 API 地址:', API_BASE_URL)
+console.log('==================================')
 
 // ============================================
 // 手动切换配置（如果自动检测不准确）
