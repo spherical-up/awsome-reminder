@@ -3,17 +3,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      # 使用构建缓存加速
-      cache_from:
-        - python:3.9-slim
     container_name: reminder-server
+    # 生产环境：只绑定到 127.0.0.1，通过 Nginx 反向代理对外提供服务
+    # 如果需要直接访问，可以改为 "0.0.0.0:5001:5001"
     ports:
-      - "127.0.0.1:5001:5001"  # 本地访问（使用5001避免与AirPlay冲突）
-      # 开发环境：根据当前IP动态配置局域网访问
-      # 获取当前IP: ipconfig getifaddr en0 (macOS) 或 hostname -I (Linux)
-      # 然后取消注释下面一行并替换IP地址
-      - "10.0.1.130:5001:5001"  # 局域网访问（开发环境，IP可能变化）
-      # 生产环境：使用 docker-compose.prod.yml，只绑定 127.0.0.1，通过 Nginx 反向代理
+      - "127.0.0.1:5001:5001"  # 仅本地访问，通过 Nginx 反向代理
     env_file:
       - .env
     # 添加 extra_hosts 让容器能够访问宿主机的 localhost
@@ -24,7 +18,8 @@ services:
       - DOCKER_CONTAINER=true
     volumes:
       - ./logs:/var/log/reminder-server
-      - .:/app  # 挂载代码目录，代码更新后无需重新构建
+      # 生产环境：不挂载代码目录，使用镜像中的代码（更安全）
+      # - .:/app  # 开发环境才需要
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5001/api/health"]
@@ -32,4 +27,13 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+    # 生产环境：限制资源使用
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
 
