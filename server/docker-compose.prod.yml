@@ -16,6 +16,11 @@ services:
     # 设置标志，让代码知道在 Docker 容器中运行
     environment:
       - DOCKER_CONTAINER=true
+      # 生产环境：明确设置数据库主机（如果 .env 中没有设置）
+      # 如果 MySQL 在宿主机上，使用 host.docker.internal
+      # 如果 MySQL 在另一个容器中，使用容器名称或服务名称
+      # 如果 MySQL 在远程服务器，使用实际 IP 或域名
+      # - DB_HOST=host.docker.internal  # 取消注释并修改为实际值
     volumes:
       - ./logs:/var/log/reminder-server
       # 生产环境：不挂载代码目录，使用镜像中的代码（更安全）

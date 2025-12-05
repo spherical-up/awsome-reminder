@@ -10387,3 +10387,53 @@ INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5f
 INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
 INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
 INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到登录请求: {'code': '0f3jZzFa1sX9MK0vspGa11Uv6d1jZzFg'}
+INFO:app:调用微信接口换取 openid: appid=wxc62510266228969e, code=0f3jZzFa1s...
+INFO:app:收到登录请求: {'code': '0c3jZzFa1sX9MK0rHOGa1pkVjd4jZzFT'}
+INFO:app:调用微信接口换取 openid: appid=wxc62510266228969e, code=0c3jZzFa1s...
+INFO:app:微信接口响应: {'session_key': 'RWO+xrJYbOsIPBx4EPYxkw==', 'openid': 'o4zIw5fpKcN0weRXiJHjPB9vd25Y'}
+INFO:app:微信接口响应: {'session_key': 'RWO+xrJYbOsIPBx4EPYxkw==', 'openid': 'o4zIw5fpKcN0weRXiJHjPB9vd25Y'}
+INFO:app:用户登录成功: openid=o4zIw5fpKcN0weRXiJHjPB9vd25Y
+INFO:app:用户登录成功: openid=o4zIw5fpKcN0weRXiJHjPB9vd25Y
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:删除提醒成功: 1764758366446
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到创建提醒请求: {'openid': 'o4zIw5fpKcN0weRXiJHjPB9vd25Y', 'title': '我在看', 'thing1': '我在看', 'thing4': '嗯！嗯、', 'time': '2025-12-05 11:38:30', 'reminderTime': 1764905910000, 'enableSubscribe': True}
+ERROR:app:保存提醒到数据库失败: (pymysql.err.DataError) (1366, "Incorrect integer value: 'o4zIw5fpKcN0weRXiJHjPB9vd25Y_1764905910000' for column 'id' at row 1")
+[SQL: INSERT INTO reminders (id, openid, owner_openid, title, thing1, thing4, time, reminder_time, completed, enable_subscribe, status, shared, create_time) VALUES (%(id)s, %(openid)s, %(owner_openid)s, %(title)s, %(thing1)s, %(thing4)s, %(time)s, %(reminder_time)s, %(completed)s, %(enable_subscribe)s, %(status)s, %(shared)s, %(create_time)s)]
+[parameters: {'id': 'o4zIw5fpKcN0weRXiJHjPB9vd25Y_1764905910000', 'openid': 'o4zIw5fpKcN0weRXiJHjPB9vd25Y', 'owner_openid': 'o4zIw5fpKcN0weRXiJHjPB9vd25Y', 'title': '我在看', 'thing1': '我在看', 'thing4': '嗯！嗯、', 'time': '2025-12-05 11:38:30', 'reminder_time': 1764905910000, 'completed': 0, 'enable_subscribe': 1, 'status': 'pending', 'shared': 0, 'create_time': datetime.datetime(2025, 12, 5, 3, 38, 11, 349157)}]
+(Background on this error at: https://sqlalche.me/e/20/9h9h)
+INFO:app:收到创建提醒请求: {'openid': 'o4zIw5fpKcN0weRXiJHjPB9vd25Y', 'title': '我在看', 'thing1': '我在看', 'thing4': '嗯！嗯、', 'time': '2025-12-05 11:38:30', 'reminderTime': 1764905910000, 'enableSubscribe': True}
+ERROR:app:保存提醒到数据库失败: (pymysql.err.DataError) (1366, "Incorrect integer value: 'o4zIw5fpKcN0weRXiJHjPB9vd25Y_1764905910000' for column 'id' at row 1")
+[SQL: INSERT INTO reminders (id, openid, owner_openid, title, thing1, thing4, time, reminder_time, completed, enable_subscribe, status, shared, create_time) VALUES (%(id)s, %(openid)s, %(owner_openid)s, %(title)s, %(thing1)s, %(thing4)s, %(time)s, %(reminder_time)s, %(completed)s, %(enable_subscribe)s, %(status)s, %(shared)s, %(create_time)s)]
+[parameters: {'id': 'o4zIw5fpKcN0weRXiJHjPB9vd25Y_1764905910000', 'openid': 'o4zIw5fpKcN0weRXiJHjPB9vd25Y', 'owner_openid': 'o4zIw5fpKcN0weRXiJHjPB9vd25Y', 'title': '我在看', 'thing1': '我在看', 'thing4': '嗯！嗯、', 'time': '2025-12-05 11:38:30', 'reminder_time': 1764905910000, 'completed': 0, 'enable_subscribe': 1, 'status': 'pending', 'shared': 0, 'create_time': datetime.datetime(2025, 12, 5, 3, 38, 16, 791132)}]
+(Background on this error at: https://sqlalche.me/e/20/9h9h)
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到创建提醒请求: {'openid': 'o4zIw5fpKcN0weRXiJHjPB9vd25Y', 'title': '好喜欢看', 'thing1': '好喜欢看', 'thing4': '好喜欢看肖', 'time': '2025-12-05 11:38:59', 'reminderTime': 1764905939000, 'enableSubscribe': True}
+ERROR:app:保存提醒到数据库失败: (pymysql.err.DataError) (1366, "Incorrect integer value: 'o4zIw5fpKcN0weRXiJHjPB9vd25Y_1764905939000' for column 'id' at row 1")
+[SQL: INSERT INTO reminders (id, openid, owner_openid, title, thing1, thing4, time, reminder_time, completed, enable_subscribe, status, shared, create_time) VALUES (%(id)s, %(openid)s, %(owner_openid)s, %(title)s, %(thing1)s, %(thing4)s, %(time)s, %(reminder_time)s, %(completed)s, %(enable_subscribe)s, %(status)s, %(shared)s, %(create_time)s)]
+[parameters: {'id': 'o4zIw5fpKcN0weRXiJHjPB9vd25Y_1764905939000', 'openid': 'o4zIw5fpKcN0weRXiJHjPB9vd25Y', 'owner_openid': 'o4zIw5fpKcN0weRXiJHjPB9vd25Y', 'title': '好喜欢看', 'thing1': '好喜欢看', 'thing4': '好喜欢看肖', 'time': '2025-12-05 11:38:59', 'reminder_time': 1764905939000, 'completed': 0, 'enable_subscribe': 1, 'status': 'pending', 'shared': 0, 'create_time': datetime.datetime(2025, 12, 5, 3, 38, 53, 400550)}]
+(Background on this error at: https://sqlalche.me/e/20/9h9h)
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])
+WARNING:app:检测到表不存在错误 (获取提醒列表)，尝试自动创建表
+INFO:app:开始检查/创建数据库表...
+INFO:app:尝试创建表 (第 1/3 次)
+INFO:app:✅ SQLAlchemy 表创建/检查完成
+INFO:app:✅ 验证表存在成功 - reminders 表已存在
+INFO:app:✅ 表创建完成，获取提醒列表 可以重试
+INFO:app:收到获取提醒列表请求: ImmutableMultiDict([('openid', 'o4zIw5fpKcN0weRXiJHjPB9vd25Y')])

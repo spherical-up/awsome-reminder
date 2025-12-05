@@ -92,29 +92,53 @@ function clearDevServerIP() {
 
 // 判断当前环境
 function getAPIBaseURL() {
+  // 生产环境地址
+  const PROD_API_URL = 'https://www.6ht6.com/api'
+  
   try {
     // 获取小程序账号信息
     const accountInfo = wx.getAccountInfoSync()
     const envVersion = accountInfo.miniProgram.envVersion
     
+    console.log('当前小程序环境:', envVersion)
+    console.log('账号信息:', accountInfo)
+    
     // envVersion 可能的值：
     // - 'develop': 开发版（开发者工具）
-    // - 'trial': 体验版
+    // - 'trial': 体验版（通常也应该使用生产环境，除非特别配置）
     // - 'release': 正式版
     
+    // 只有正式版使用生产环境
     if (envVersion === 'release') {
-      // 正式版：使用生产环境地址
-      return 'https://www.6ht6.com/api'
-    } else {
-      // 开发版和体验版：使用开发环境地址
+      console.log('✅ 检测到正式版，使用生产环境 API')
+      return PROD_API_URL
+    } 
+    // 体验版默认也使用生产环境（可根据需要调整）
+    else if (envVersion === 'trial') {
+      // 体验版：可以选择使用生产环境或开发环境
+      // 如果需要体验版也使用生产环境，取消下面的注释
+      console.log('⚠️ 检测到体验版，使用生产环境 API')
+      return PROD_API_URL
+      
+      // 如果需要体验版使用开发环境，取消下面的注释
+      // const localIP = getLocalIP()
+      // return `http://${localIP}:5001/api`
+    }
+    // 开发版使用开发环境
+    else if (envVersion === 'develop') {
+      console.log('🔧 检测到开发版，使用开发环境 API')
       const localIP = getLocalIP()
       return `http://${localIP}:5001/api`
     }
+    // 未知环境，默认使用生产环境（更安全）
+    else {
+      console.warn('⚠️ 未知环境版本，默认使用生产环境:', envVersion)
+      return PROD_API_URL
+    }
   } catch (e) {
-    // 如果获取失败，默认使用开发环境
-    console.warn('获取环境信息失败，使用开发环境:', e)
-    const localIP = getLocalIP()
-    return `http://${localIP}:5001/api`
+    // 如果获取失败，默认使用生产环境（更安全，避免开发环境泄露）
+    console.error('❌ 获取环境信息失败，默认使用生产环境:', e)
+    return PROD_API_URL
   }
 }
 
