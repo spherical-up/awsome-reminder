@@ -291,116 +291,107 @@ def ensure_tables_exist():
                     raise create_error
     
     # 检查并添加缺失的字段（用于表结构升级）
-            db = SessionLocal()
-            try:
-                # 检查 reminders 表是否存在 owner_openid 字段
-                try:
-                    result = db.execute(text("""
-                        SELECT COUNT(*) as cnt
-                        FROM information_schema.COLUMNS 
-                        WHERE TABLE_SCHEMA = :db_name 
-                        AND TABLE_NAME = 'reminders' 
-                        AND COLUMN_NAME = 'owner_openid'
-                    """), {'db_name': DB_NAME})
-                    row = result.fetchone()
-                    has_owner_openid = row[0] > 0 if row else False
-                    
-                    if not has_owner_openid:
-                        logger.info('检测到 reminders 表缺少 owner_openid 字段，正在添加...')
-                        try:
-                            # 先添加字段（允许NULL，避免已有数据问题）
-                            db.execute(text("""
-                                ALTER TABLE reminders 
-                                ADD COLUMN owner_openid VARCHAR(100) DEFAULT ''
-                            """))
-                            # 更新已有数据的 owner_openid
-                            db.execute(text("""
-                                UPDATE reminders 
-                                SET owner_openid = openid 
-                                WHERE owner_openid = '' OR owner_openid IS NULL
-                            """))
-                            # 然后设置为 NOT NULL
-                            db.execute(text("""
-                                ALTER TABLE reminders 
-                                MODIFY COLUMN owner_openid VARCHAR(100) NOT NULL DEFAULT ''
-                            """))
-                            db.commit()
-                            logger.info('✅ 已添加 owner_openid 字段并更新数据')
-                        except Exception as e:
-                            logger.warning(f'添加 owner_openid 字段失败（可能已存在）: {str(e)}')
-                            db.rollback()
-                except Exception as e:
-                    logger.warning(f'检查 owner_openid 字段时出错: {str(e)}')
-                
-                # 检查 shared 字段
-                try:
-                    result = db.execute(text("""
-                        SELECT COUNT(*) as cnt
-                        FROM information_schema.COLUMNS 
-                        WHERE TABLE_SCHEMA = :db_name 
-                        AND TABLE_NAME = 'reminders' 
-                        AND COLUMN_NAME = 'shared'
-                    """), {'db_name': DB_NAME})
-                    row = result.fetchone()
-                    has_shared = row[0] > 0 if row else False
-                    
-                    if not has_shared:
-                        logger.info('检测到 reminders 表缺少 shared 字段，正在添加...')
-                        try:
-                            db.execute(text("""
-                                ALTER TABLE reminders 
-                                ADD COLUMN shared BOOLEAN DEFAULT FALSE
-                            """))
-                            db.commit()
-                            logger.info('✅ 已添加 shared 字段')
-                        except Exception as e:
-                            logger.warning(f'添加 shared 字段失败（可能已存在）: {str(e)}')
-                            db.rollback()
-                except Exception as e:
-                    logger.warning(f'检查 shared 字段时出错: {str(e)}')
-                
-                # 检查索引（如果字段存在）
-                if has_owner_openid:
-                    try:
-                        result = db.execute(text("""
-                            SELECT COUNT(*) as cnt
-                            FROM information_schema.STATISTICS 
-                            WHERE TABLE_SCHEMA = :db_name 
-                            AND TABLE_NAME = 'reminders' 
-                            AND INDEX_NAME = 'idx_owner_openid'
-                        """), {'db_name': DB_NAME})
-                        row = result.fetchone()
-                        has_index = row[0] > 0 if row else False
-                        
-                        if not has_index:
-                            logger.info('检测到 reminders 表缺少 idx_owner_openid 索引，正在添加...')
-                            try:
-                                db.execute(text("""
-                                    CREATE INDEX idx_owner_openid ON reminders(owner_openid)
-                                """))
-                                db.commit()
-                                logger.info('✅ 已添加 idx_owner_openid 索引')
-                            except Exception as e:
-                                logger.warning(f'添加索引失败（可能已存在）: {str(e)}')
-                                db.rollback()
-                    except Exception as e:
-                        logger.warning(f'检查索引时出错: {str(e)}')
-                    
-            except Exception as e:
-                logger.warning(f'检查表结构时出错: {str(e)}')
-            finally:
-                db.close()
+    db = SessionLocal()
+    try:
+        # 检查 reminders 表是否存在 owner_openid 字段
+        try:
+            result = db.execute(text("""
+                SELECT COUNT(*) as cnt
+                FROM information_schema.COLUMNS 
+                WHERE TABLE_SCHEMA = :db_name 
+                AND TABLE_NAME = 'reminders' 
+                AND COLUMN_NAME = 'owner_openid'
+            """), {'db_name': DB_NAME})
+            row = result.fetchone()
+            has_owner_openid = row[0] > 0 if row else False
             
-            break  # 成功则退出循环
-            
+            if not has_owner_openid:
+                logger.info('检测到 reminders 表缺少 owner_openid 字段，正在添加...')
+                try:
+                    # 先添加字段（允许NULL，避免已有数据问题）
+                    db.execute(text("""
+                        ALTER TABLE reminders 
+                        ADD COLUMN owner_openid VARCHAR(100) DEFAULT ''
+                    """))
+                    # 更新已有数据的 owner_openid
+                    db.execute(text("""
+                        UPDATE reminders 
+                        SET owner_openid = openid 
+                        WHERE owner_openid = '' OR owner_openid IS NULL
+                    """))
+                    # 然后设置为 NOT NULL
+                    db.execute(text("""
+                        ALTER TABLE reminders 
+                        MODIFY COLUMN owner_openid VARCHAR(100) NOT NULL DEFAULT ''
+                    """))
+                    db.commit()
+                    logger.info('✅ 已添加 owner_openid 字段并更新数据')
+                except Exception as e:
+                    logger.warning(f'添加 owner_openid 字段失败（可能已存在）: {str(e)}')
+                    db.rollback()
         except Exception as e:
-            logger.error(f'❌ 数据库表创建失败 (尝试 {attempt + 1}/{max_retries}): {str(e)}')
-            if attempt == max_retries - 1:
-                logger.error('请检查数据库配置和连接')
-                logger.warning('表创建失败，但应用将继续运行，请手动检查数据库')
-            else:
-                import time
-                time.sleep(1)  # 等待1秒后重试
+            logger.warning(f'检查 owner_openid 字段时出错: {str(e)}')
+        
+        # 检查 shared 字段
+        try:
+            result = db.execute(text("""
+                SELECT COUNT(*) as cnt
+                FROM information_schema.COLUMNS 
+                WHERE TABLE_SCHEMA = :db_name 
+                AND TABLE_NAME = 'reminders' 
+                AND COLUMN_NAME = 'shared'
+            """), {'db_name': DB_NAME})
+            row = result.fetchone()
+            has_shared = row[0] > 0 if row else False
+            
+            if not has_shared:
+                logger.info('检测到 reminders 表缺少 shared 字段，正在添加...')
+                try:
+                    db.execute(text("""
+                        ALTER TABLE reminders 
+                        ADD COLUMN shared BOOLEAN DEFAULT FALSE
+                    """))
+                    db.commit()
+                    logger.info('✅ 已添加 shared 字段')
+                except Exception as e:
+                    logger.warning(f'添加 shared 字段失败（可能已存在）: {str(e)}')
+                    db.rollback()
+        except Exception as e:
+            logger.warning(f'检查 shared 字段时出错: {str(e)}')
+        
+        # 检查索引（如果字段存在）
+        if has_owner_openid:
+            try:
+                result = db.execute(text("""
+                    SELECT COUNT(*) as cnt
+                    FROM information_schema.STATISTICS 
+                    WHERE TABLE_SCHEMA = :db_name 
+                    AND TABLE_NAME = 'reminders' 
+                    AND INDEX_NAME = 'idx_owner_openid'
+                """), {'db_name': DB_NAME})
+                row = result.fetchone()
+                has_index = row[0] > 0 if row else False
+                
+                if not has_index:
+                    logger.info('检测到 reminders 表缺少 idx_owner_openid 索引，正在添加...')
+                    try:
+                        db.execute(text("""
+                            CREATE INDEX idx_owner_openid ON reminders(owner_openid)
+                        """))
+                        db.commit()
+                        logger.info('✅ 已添加 idx_owner_openid 索引')
+                    except Exception as e:
+                        logger.warning(f'添加索引失败（可能已存在）: {str(e)}')
+                        db.rollback()
+            except Exception as e:
+                logger.warning(f'检查索引时出错: {str(e)}')
+                
+    except Exception as e:
+        logger.warning(f'检查表结构时出错: {str(e)}')
+    finally:
+        db.close()
+    
+    logger.info('数据库表检查/创建完成')
 
 # 确保表存在的辅助函数（在数据库操作失败时调用）
 def handle_table_error(error, operation_name="数据库操作"):
