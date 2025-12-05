@@ -195,39 +195,93 @@ function getUserOpenid() {
     // 先从缓存获取
     const cachedOpenid = wx.getStorageSync('user_openid')
     if (cachedOpenid) {
+      console.log('从缓存获取 openid:', cachedOpenid)
       resolve(cachedOpenid)
       return
     }
 
+    console.log('开始获取 openid，API 地址:', API_BASE_URL)
+    
     // 获取 code
     wx.login({
       success: (res) => {
         if (res.code) {
+          console.log('获取 code 成功，开始调用服务端接口')
           // 调用服务端接口换取 openid
-          // 注意：这里需要你的服务端提供一个 /api/auth/login 接口
-          // 或者直接使用微信云开发
           wx.request({
             url: `${API_BASE_URL}/auth/login`,
             method: 'POST',
+            header: {
+              'Content-Type': 'application/json'
+            },
             data: {
               code: res.code
             },
             success: (result) => {
-              if (result.data.errcode === 0) {
-                const openid = result.data.data.openid
-                wx.setStorageSync('user_openid', openid)
-                resolve(openid)
+              console.log('服务端响应:', result)
+              console.log('响应状态码:', result.statusCode)
+              console.log('响应数据:', result.data)
+              
+              if (result.statusCode === 200 && result.data && result.data.errcode === 0) {
+                const openid = result.data.data?.openid
+                if (openid) {
+                  console.log('获取 openid 成功:', openid)
+                  wx.setStorageSync('user_openid', openid)
+                  resolve(openid)
+                } else {
+                  console.error('响应数据中没有 openid:', result.data)
+                  reject(new Error('服务端返回数据格式错误：缺少 openid'))
+                }
               } else {
-                reject(new Error('获取 openid 失败'))
+                const errmsg = result.data?.errmsg || '未知错误'
+                const errcode = result.data?.errcode || result.statusCode || -1
+                console.error('获取 openid 失败:', {
+                  errcode: errcode,
+                  errmsg: errmsg,
+                  statusCode: result.statusCode,
+                  data: result.data
+                })
+                reject(new Error(`获取 openid 失败: ${errmsg} (错误码: ${errcode})`))
               }
             },
-            fail: reject
+            fail: (err) => {
+              console.error('请求失败:', err)
+              console.error('请求 URL:', `${API_BASE_URL}/auth/login`)
+              console.error('错误详情:', {
+                errMsg: err.errMsg,
+                statusCode: err.statusCode,
+                data: err.data
+              })
+              
+              let errorMsg = '网络请求失败'
+              if (err.errMsg) {
+                if (err.errMsg.includes('timeout')) {
+                  errorMsg = '请求超时，请检查网络连接'
+                } else if (err.errMsg.includes('fail')) {
+                  errorMsg = `请求失败: ${err.errMsg}`
+                } else {
+                  errorMsg = err.errMsg
+                }
+              }
+              
+              // 如果是网络错误，清除缓存，下次重试
+              if (err.errMsg && (err.errMsg.includes('timeout') || err.errMsg.includes('fail'))) {
+                console.log('清除 openid 缓存，下次重试')
+                wx.removeStorageSync('user_openid')
+              }
+              
+              reject(new Error(errorMsg))
+            }
           })
         } else {
-          reject(new Error('获取 code 失败'))
+          console.error('获取 code 失败:', res)
+          reject(new Error('获取微信登录 code 失败'))
         }
       },
-      fail: reject
+      fail: (err) => {
+        console.error('wx.login 失败:', err)
+        reject(new Error(`微信登录失败: ${err.errMsg || '未知错误'}`))
+      }
     })
   })
 }
@@ -275,10 +329,14 @@ function createReminder(reminderData) {
 function getReminders() {
   return new Promise(async (resolve, reject) => {
     try {
+      console.log('开始获取提醒列表，API 地址:', API_BASE_URL)
+      
       const openid = await getUserOpenid()
+      console.log('获取到 openid:', openid)
       
       // GET 请求需要将参数放在 URL 中
       const url = `${API_BASE_URL}/reminders?openid=${encodeURIComponent(openid)}`
+      console.log('请求 URL:', url)
       
       wx.request({
         url: url,
@@ -287,23 +345,57 @@ function getReminders() {
           'Content-Type': 'application/json'
         },
         success: (res) => {
+          console.log('获取提醒列表响应:', {
+            statusCode: res.statusCode,
+            data: res.data
+          })
+          
           if (res.statusCode === 200) {
-            if (res.data.errcode === 0) {
-              resolve(res.data.data || [])
+            if (res.data && res.data.errcode === 0) {
+              const reminders = res.data.data || []
+              console.log('获取提醒列表成功，数量:', reminders.length)
+              resolve(reminders)
             } else {
-              reject(new Error(res.data.errmsg || '获取提醒列表失败'))
+              const errmsg = res.data?.errmsg || '获取提醒列表失败'
+              const errcode = res.data?.errcode || -1
+              console.error('获取提醒列表失败:', {
+                errcode: errcode,
+                errmsg: errmsg,
+                data: res.data
+              })
+              reject(new Error(`${errmsg} (错误码: ${errcode})`))
             }
           } else {
-            reject(new Error(`请求失败: ${res.statusCode}`))
+            console.error('请求失败，状态码:', res.statusCode, '响应:', res.data)
+            reject(new Error(`请求失败: HTTP ${res.statusCode}${res.data?.errmsg ? ' - ' + res.data.errmsg : ''}`))
           }
         },
         fail: (err) => {
-          console.error('请求失败:', err)
-          reject(new Error(err.errMsg || '网络请求失败'))
+          console.error('获取提醒列表请求失败:', err)
+          console.error('请求 URL:', url)
+          console.error('错误详情:', {
+            errMsg: err.errMsg,
+            statusCode: err.statusCode,
+            data: err.data
+          })
+          
+          let errorMsg = '网络请求失败'
+          if (err.errMsg) {
+            if (err.errMsg.includes('timeout')) {
+              errorMsg = '请求超时，请检查网络连接'
+            } else if (err.errMsg.includes('fail')) {
+              errorMsg = `请求失败: ${err.errMsg}`
+            } else {
+              errorMsg = err.errMsg
+            }
+          }
+          
+          reject(new Error(errorMsg))
         }
       })
     } catch (error) {
-      reject(error)
+      console.error('获取提醒列表异常:', error)
+      reject(error instanceof Error ? error : new Error(String(error)))
     }
   })
 }
