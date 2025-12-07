@@ -427,6 +427,115 @@ Page({
   // 接受分享的提醒
   async acceptSharedReminder(reminderId) {
     try {
+      // 先检查订阅消息授权状态，如果没有授权，先请求授权
+      const tmplId = 'is4mEq0nlt5fJRn-Pflnr-wJxoCKOz9qty857QmH7Bw'
+      let hasAuthorized = false
+      
+      try {
+        // 检查当前授权状态
+        const authStatus = await subscribeMessage.checkSubscribeMessageStatus(tmplId)
+        console.log('当前订阅消息授权状态:', authStatus)
+        
+        if (authStatus === 'accept') {
+          // 已经授权
+          hasAuthorized = true
+          console.log('✅ 订阅消息已授权')
+        } else if (authStatus === 'ban') {
+          // 被永久拒绝，提示用户去设置中开启
+          wx.showModal({
+            title: '订阅消息被拒绝',
+            content: '您已永久拒绝订阅消息，无法接收提醒通知。如需接收通知，请在"设置-订阅消息"中开启。',
+            showCancel: false,
+            confirmText: '知道了',
+            success: () => {
+              // 即使被拒绝，也允许接受提醒（只是收不到通知）
+              this.doAcceptReminder(reminderId)
+            }
+          })
+          return
+        } else {
+          // 未授权或被拒绝，请求授权
+          console.log('订阅消息未授权，请求授权...')
+          const tmplIds = [tmplId]
+          const subscribeRes = await subscribeMessage.requestSubscribeMessage(tmplIds)
+          
+          // 检查授权结果
+          for (let id of tmplIds) {
+            if (subscribeRes[id] === 'accept') {
+              hasAuthorized = true
+              console.log('✅ 订阅消息授权成功')
+              break
+            }
+          }
+          
+          if (!hasAuthorized) {
+            // 用户拒绝了授权，询问是否继续接受提醒
+            const res = await new Promise((resolve) => {
+              wx.showModal({
+                title: '需要授权',
+                content: '您未授权订阅消息，提醒时间到达时将无法收到通知。是否继续接受此提醒？',
+                success: (result) => resolve(result.confirm),
+                fail: () => resolve(false)
+              })
+            })
+            
+            if (!res) {
+              // 用户取消，不接受提醒
+              return
+            }
+            // 用户选择继续，即使未授权也接受提醒
+          }
+        }
+      } catch (err) {
+        console.error('检查/请求订阅消息授权失败', err)
+        // 授权失败不影响接受提醒，但询问用户是否继续
+        const res = await new Promise((resolve) => {
+          wx.showModal({
+            title: '授权失败',
+            content: '订阅消息授权失败，提醒时间到达时可能无法收到通知。是否继续接受此提醒？',
+            success: (result) => resolve(result.confirm),
+            fail: () => resolve(false)
+          })
+        })
+        
+        if (!res) {
+          // 用户取消，不接受提醒
+          return
+        }
+      }
+      
+      // 授权检查完成，执行接受提醒
+      await this.doAcceptReminder(reminderId)
+      
+    } catch (err) {
+      wx.hideLoading()
+      console.error('接受提醒失败', err)
+      
+      // 处理各种错误情况
+      let errorMsg = err.message || '接受失败'
+      
+      if (errorMsg.includes('已经接受') || errorMsg.includes('alreadyAccepted')) {
+        errorMsg = '您已经接受过此提醒'
+      } else if (errorMsg.includes('不能接受自己')) {
+        errorMsg = '不能接受自己创建的提醒'
+      } else if (errorMsg.includes('400')) {
+        errorMsg = '无法接受此提醒，可能已经接受过'
+      }
+      
+      wx.showModal({
+        title: '接受失败',
+        content: errorMsg,
+        showCancel: false,
+        success: () => {
+          this.loadReminders()
+        }
+      })
+    }
+  },
+
+  // 执行接受提醒的操作
+  async doAcceptReminder(reminderId) {
+    try {
       wx.showLoading({ title: '接受中...' })
       
       const openid = await api.getUserOpenid()
@@ -447,44 +556,50 @@ Page({
         return
       }
       
-      // 先请求订阅消息授权（在显示toast之前，确保授权弹窗能正常显示）
-      // 注意：微信小程序订阅消息必须用户主动授权，无法默认给权限
-      try {
-        const tmplIds = [
-          'is4mEq0nlt5fJRn-Pflnr-wJxoCKOz9qty857QmH7Bw'
-        ]
-        
-        console.log('请求订阅消息授权，确保能收到提醒通知...')
-        const subscribeRes = await subscribeMessage.requestSubscribeMessage(tmplIds)
-        
-        // 检查订阅结果
-        let hasAccepted = false
-        for (let tmplId of tmplIds) {
-          if (subscribeRes[tmplId] === 'accept') {
-            hasAccepted = true
-            break
-          }
-        }
-        
-        if (hasAccepted) {
-          console.log('✅ 订阅消息授权成功，提醒时间到达时将收到通知')
-        } else {
-          console.log('⚠️ 用户未授权订阅消息，提醒时间到达时将无法收到通知')
-          // 提示用户需要授权才能收到通知
-          wx.showModal({
-            title: '提示',
-            content: '您未授权订阅消息，提醒时间到达时将无法收到通知。如需接收通知，请在设置中开启订阅消息权限。',
-            showCancel: false
-          })
-        }
-      } catch (err) {
-        console.error('请求订阅消息授权失败', err)
-        // 授权失败不影响接受提醒，但提示用户
+      // 显示接受成功提示
+      if (result.message) {
+        wx.showToast({
+          title: result.message,
+          icon: 'none',
+          duration: 1500
+        })
+      } else {
+        wx.showToast({
+          title: '已接受提醒',
+          icon: 'success',
+          duration: 1500
+        })
+      }
+      
+      // 立即刷新列表（不等待toast）
+      await this.loadReminders()
+      
+      // 多次刷新确保数据同步（解决安卓手机有时不刷新的问题）
+      // 第一次刷新：立即刷新
+      // 第二次刷新：500ms后刷新（确保数据已同步）
+      // 第三次刷新：2000ms后刷新（toast消失后再次刷新）
+      setTimeout(() => {
+        this.loadReminders()
+      }, 500)
+      
+      setTimeout(() => {
+        this.loadReminders()
+      }, 2000)
+    } catch (err) {
+      wx.hideLoading()
+      console.error('执行接受提醒失败', err)
+      throw err // 重新抛出错误，让上层处理
+    }
+  },
         wx.showModal({
           title: '提示',
-          content: '订阅消息授权失败，提醒时间到达时可能无法收到通知。',
-          showCancel: false
+          content: result.message || '您已经接受过此提醒',
+          showCancel: false,
+          success: () => {
+            this.loadReminders()
+          }
         })
+        return
       }
       
       // 显示接受成功提示
