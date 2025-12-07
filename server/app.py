@@ -17,6 +17,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy import text
 import pymysql
+import threading
 
 # 加载环境变量
 load_dotenv()
@@ -51,9 +52,105 @@ TEMPLATE_ID = os.getenv('WX_TEMPLATE_ID', 'is4mEq0nlt5fJRn-Pflnr-wJxoCKOz9qty857
 # 消息推送 Token（用于验证消息来源）
 WX_TOKEN = os.getenv('WX_TOKEN', 'your_custom_token_123456')
 
-# 存储 access_token
-access_token = None
-token_expires_at = None
+
+class TokenManager:
+    """
+    微信 access_token 管理器
+    使用类封装确保类型一致性和线程安全
+    """
+    def __init__(self, appid, appsecret):
+        self.appid = appid
+        self.appsecret = appsecret
+        self._token = None
+        self._expires_at = None  # 始终是 datetime 对象或 None
+        self._lock = threading.Lock()  # 线程锁，保护并发访问
+    
+    def _normalize_expires_at(self, value):
+        """
+        规范化 expires_at 值，确保返回 datetime 对象或 None
+        """
+        if value is None:
+            return None
+        
+        # 如果已经是 datetime 对象，直接返回
+        if isinstance(value, datetime):
+            return value
+        
+        # 如果是数字（时间戳），转换为 datetime
+        if isinstance(value, (int, float)):
+            try:
+                # 判断是毫秒级还是秒级时间戳
+                if value > 1e10:  # 毫秒级时间戳（大于10位数）
+                    return datetime.fromtimestamp(value / 1000)
+                else:  # 秒级时间戳
+                    return datetime.fromtimestamp(value)
+            except (ValueError, OSError) as e:
+                logger.warning(f'时间戳转换失败: {e}, 值={value}')
+                return None
+        
+        # 其他类型，记录警告并返回 None
+        logger.warning(f'无法规范化 expires_at 值: 类型={type(value)}, 值={value}')
+        return None
+    
+    def is_valid(self):
+        """
+        检查 token 是否有效（存在且未过期）
+        返回: (is_valid, token)
+        """
+        with self._lock:
+            if self._token is None or self._expires_at is None:
+                return False, None
+            
+            # 确保 expires_at 是 datetime 对象
+            self._expires_at = self._normalize_expires_at(self._expires_at)
+            
+            if self._expires_at is None:
+                # 如果规范化失败，清除 token
+                self._token = None
+                return False, None
+            
+            # 检查是否过期（提前5分钟刷新）
+            try:
+                now = datetime.now()
+                if now < self._expires_at:
+                    return True, self._token
+                else:
+                    # 已过期，清除
+                    self._token = None
+                    self._expires_at = None
+                    return False, None
+            except (TypeError, ValueError) as e:
+                logger.error(f'token 过期时间比较错误: {e}, expires_at类型={type(self._expires_at)}, 值={self._expires_at}')
+                self._token = None
+                self._expires_at = None
+                return False, None
+    
+    def set_token(self, token, expires_in):
+        """
+        设置 token 和过期时间
+        expires_in: 过期时间（秒），会自动提前5分钟刷新
+        """
+        with self._lock:
+            self._token = token
+            # 提前 5 分钟刷新 token
+            expires_in_actual = expires_in - 300
+            self._expires_at = datetime.now() + timedelta(seconds=expires_in_actual)
+            logger.info(f'token 已设置，过期时间: {self._expires_at}')
+    
+    def clear(self):
+        """清除 token"""
+        with self._lock:
+            self._token = None
+            self._expires_at = None
+    
+    def get_token(self):
+        """获取当前 token（不检查有效性）"""
+        with self._lock:
+            return self._token
+
+
+# 创建全局 TokenManager 实例
+token_manager = TokenManager(APPID, APPSECRET)
 
 # 数据库配置
 # 自动检测运行环境：如果在 Docker 容器中，使用 host.docker.internal；否则使用 localhost
@@ -443,49 +540,15 @@ def get_access_token():
     """
     获取微信 access_token
     有效期 2 小时，需要缓存
+    使用 TokenManager 确保类型一致性和线程安全
     """
-    global access_token, token_expires_at
+    # 检查 token 是否有效
+    is_valid, token = token_manager.is_valid()
+    if is_valid:
+        return token
     
-    # 如果 token 未过期，直接返回
-    # 首先确保 token_expires_at 是 datetime 对象（在比较之前）
-    if access_token and token_expires_at is not None:
-        # 强制类型检查和转换，确保 token_expires_at 是 datetime 对象
-        # 这是关键：必须在任何比较之前确保类型正确
-        if not isinstance(token_expires_at, datetime):
-            # 如果不是 datetime 对象，尝试转换
-            if isinstance(token_expires_at, (int, float)):
-                try:
-                    # 如果是秒级时间戳，需要除以1000（如果是毫秒级）
-                    if token_expires_at > 1e10:  # 毫秒级时间戳（大于10位数）
-                        token_expires_at = datetime.fromtimestamp(token_expires_at / 1000)
-                    else:  # 秒级时间戳
-                        token_expires_at = datetime.fromtimestamp(token_expires_at)
-                    logger.info(f'token_expires_at 已从时间戳转换为 datetime: {token_expires_at}')
-                except (ValueError, OSError) as e:
-                    logger.warning(f'token_expires_at 转换失败: {e}, 重置为 None')
-                    token_expires_at = None
-            else:
-                # 如果类型不对，重置 token_expires_at
-                logger.warning(f'token_expires_at 类型异常: {type(token_expires_at)}, 值={token_expires_at}, 重置为 None')
-                token_expires_at = None
-        
-        # 再次严格检查类型，确保是 datetime 对象后再比较
-        # 使用 isinstance 检查，避免任何类型问题
-        if isinstance(token_expires_at, datetime):
-            try:
-                now = datetime.now()
-                if now < token_expires_at:
-                    return access_token
-            except (TypeError, ValueError) as e:
-                logger.error(f'token_expires_at 类型比较错误: {e}, token_expires_at类型={type(token_expires_at)}, 值={token_expires_at}')
-                token_expires_at = None
-        else:
-            # 如果类型仍然不对，重置 token_expires_at
-            if token_expires_at is not None:
-                logger.warning(f'token_expires_at 类型仍然异常: {type(token_expires_at)}, 值={token_expires_at}, 重置为 None')
-                token_expires_at = None
-    
-    url = f'https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={APPID}&secret={APPSECRET}'
+    # token 无效或不存在，重新获取
+    url = f'https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={token_manager.appid}&secret={token_manager.appsecret}'
     
     try:
         response = requests.get(url, timeout=10)
@@ -493,10 +556,9 @@ def get_access_token():
         
         if 'access_token' in data:
             access_token = data['access_token']
-            # 提前 5 分钟刷新 token
-            expires_in = data.get('expires_in', 7200) - 300
-            # 将过期时间存储为 datetime 对象
-            token_expires_at = datetime.now() + timedelta(seconds=expires_in)
+            expires_in = data.get('expires_in', 7200)  # 微信返回的过期时间（秒）
+            # 使用 TokenManager 设置 token，会自动处理过期时间
+            token_manager.set_token(access_token, expires_in)
             
             logger.info('获取 access_token 成功')
             return access_token
