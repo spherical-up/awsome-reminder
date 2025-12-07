@@ -471,11 +471,31 @@ Page({
           title: '订阅成功',
           icon: 'success'
         })
+        return true
       } else {
-        wx.showToast({
-          title: '需要授权才能接收提醒',
-          icon: 'none'
-        })
+        // 检查是否是永久拒绝
+        let isBanned = false
+        for (let tmplId of tmplIds) {
+          if (res[tmplId] === 'ban') {
+            isBanned = true
+            break
+          }
+        }
+        
+        if (isBanned) {
+          wx.showToast({
+            title: '订阅消息被永久拒绝',
+            icon: 'none',
+            duration: 2000
+          })
+        } else {
+          wx.showToast({
+            title: '需要授权才能接收提醒',
+            icon: 'none',
+            duration: 2000
+          })
+        }
+        return false
       }
     } catch (err) {
       console.error('订阅消息失败', err)
@@ -483,6 +503,7 @@ Page({
         title: '订阅失败，请重试',
         icon: 'none'
       })
+      return false
     }
   },
 
@@ -568,7 +589,42 @@ Page({
       : this.data.enableSubscribe // 新建模式：开启订阅就需要授权
     
     if (needAuth) {
-      await this.requestSubscribe()
+      // 先检查是否已经授权
+      const tmplId = 'is4mEq0nlt5fJRn-Pflnr-wJxoCKOz9qty857QmH7Bw'
+      let authStatus = null
+      try {
+        authStatus = await subscribeMessage.checkSubscribeMessageStatus(tmplId)
+      } catch (err) {
+        console.error('检查订阅消息状态失败', err)
+      }
+      
+      // 如果未授权或被拒绝，请求授权
+      if (authStatus !== 'accept') {
+        const authResult = await this.requestSubscribe()
+        // 如果授权失败，询问用户是否继续保存（不开启订阅）
+        if (!authResult) {
+          const res = await new Promise((resolve) => {
+            wx.showModal({
+              title: '授权提示',
+              content: '您未授权订阅消息，提醒时间到达时将无法收到推送通知。是否继续保存提醒（不开启消息推送）？',
+              confirmText: '继续保存',
+              cancelText: '取消',
+              success: (result) => resolve(result.confirm),
+              fail: () => resolve(false)
+            })
+          })
+          
+          if (!res) {
+            // 用户取消，不保存
+            return
+          }
+          
+          // 用户选择继续保存，但关闭订阅功能
+          this.setData({
+            enableSubscribe: false
+          })
+        }
+      }
     }
 
     const reminderData = {

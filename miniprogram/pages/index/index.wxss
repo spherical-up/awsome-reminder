@@ -343,6 +343,22 @@
   font-weight: 500;
 }
 
+.reminder-no-subscribe {
+  margin-top: 8rpx;
+  display: inline-flex;
+  align-items: center;
+  padding: 4rpx 10rpx;
+  background: rgba(255, 152, 0, 0.1);
+  border-radius: 6rpx;
+  width: fit-content;
+}
+
+.no-subscribe-text {
+  font-size: 22rpx;
+  color: #ff9800;
+  font-weight: 500;
+}
+
 .reminder-actions {
   display: flex;
   align-items: center;

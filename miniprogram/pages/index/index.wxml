@@ -47,6 +47,9 @@
           <view class="reminder-source" wx:if="{{item.fromOwner}}">
             <text class="source-text">📤 来自分享（只读）</text>
           </view>
+          <view class="reminder-no-subscribe" wx:if="{{!item.fromOwner && !item.enableSubscribe}}">
+            <text class="no-subscribe-text">🔕 未开启提醒</text>
+          </view>
         </view>
       </view>
       <view class="reminder-actions">
