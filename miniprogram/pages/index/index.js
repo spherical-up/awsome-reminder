@@ -51,21 +51,40 @@ Page({
       // 同时检查是否过期
       const now = Date.now()
       const safeReminders = reminders.map(reminder => {
-        // 安全检查：如果 ownerOpenid === openid，强制设置 fromOwner = false
-        // 这样可以确保自己创建的提醒一定有分享按钮
-        if (reminder.ownerOpenid === currentOpenid || reminder.ownerOpenid === reminder.openid) {
+        // 安全检查：确保 fromOwner 字段正确
+        // 核心判断逻辑：如果 ownerOpenid === openid，说明是自己创建的提醒，fromOwner = false
+        // 如果 ownerOpenid !== openid，说明是被分享的提醒，fromOwner = true
+        
+        // 确保 ownerOpenid 和 openid 都存在
+        const ownerOpenid = reminder.ownerOpenid || reminder.owner_openid || ''
+        const reminderOpenid = reminder.openid || ''
+        
+        // 判断是否是自己创建的提醒
+        // 条件：ownerOpenid === openid 且 ownerOpenid === currentOpenid
+        // 或者 ownerOpenid === openid（即使 ownerOpenid !== currentOpenid，只要 ownerOpenid === openid 就是自己创建的）
+        if (ownerOpenid && reminderOpenid && ownerOpenid === reminderOpenid) {
+          // 自己创建的提醒，强制设置 fromOwner = false
           if (reminder.fromOwner) {
             console.warn('检测到数据不一致：自己创建的提醒被标记为 fromOwner，已修正', {
               id: reminder.id,
-              ownerOpenid: reminder.ownerOpenid,
-              openid: reminder.openid,
+              ownerOpenid: ownerOpenid,
+              openid: reminderOpenid,
+              currentOpenid: currentOpenid,
               fromOwner: reminder.fromOwner
             })
           }
           reminder.fromOwner = false
-        } else if (reminder.ownerOpenid && reminder.ownerOpenid !== currentOpenid && reminder.ownerOpenid !== reminder.openid) {
-          // 如果 ownerOpenid 存在且不等于当前用户，且不等于 openid，则应该是被分享的
+        } else if (ownerOpenid && reminderOpenid && ownerOpenid !== reminderOpenid) {
+          // 被分享的提醒，设置 fromOwner = true
           reminder.fromOwner = true
+        } else {
+          // 如果 ownerOpenid 或 openid 为空，默认认为是自己创建的（兼容旧数据）
+          console.warn('提醒数据异常，ownerOpenid 或 openid 为空，默认设置为非分享', {
+            id: reminder.id,
+            ownerOpenid: ownerOpenid,
+            openid: reminderOpenid
+          })
+          reminder.fromOwner = false
         }
         
         // 检查是否过期：如果提醒时间已过且未完成，标记为过期
@@ -76,23 +95,31 @@ Page({
           reminder.isExpired = false
         }
         
-        // 记录日志，便于调试
+        // 确保 fromOwner 是布尔值，不能是 undefined
+        reminder.fromOwner = Boolean(reminder.fromOwner)
+        
+        // 记录日志，便于调试（只在开发环境或数据异常时记录）
         if (reminder.fromOwner) {
           console.log('来自分享的提醒:', {
             id: reminder.id,
             thing1: reminder.thing1,
-            ownerOpenid: reminder.ownerOpenid,
-            openid: reminder.openid,
-            isExpired: reminder.isExpired
+            ownerOpenid: ownerOpenid,
+            openid: reminderOpenid,
+            currentOpenid: currentOpenid,
+            isExpired: reminder.isExpired,
+            fromOwner: reminder.fromOwner
           })
         } else {
-          console.log('自己创建的提醒:', {
-            id: reminder.id,
-            thing1: reminder.thing1,
-            ownerOpenid: reminder.ownerOpenid,
-            openid: reminder.openid,
-            isExpired: reminder.isExpired
-          })
+          // 只在数据异常时记录日志
+          if (ownerOpenid && reminderOpenid && ownerOpenid !== reminderOpenid) {
+            console.warn('数据异常：ownerOpenid !== openid 但 fromOwner = false', {
+              id: reminder.id,
+              ownerOpenid: ownerOpenid,
+              openid: reminderOpenid,
+              currentOpenid: currentOpenid,
+              fromOwner: reminder.fromOwner
+            })
+          }
         }
         
         return reminder
