@@ -383,6 +383,42 @@ Page({
   // 处理分享的提醒
   async handleSharedReminder(reminderId) {
     try {
+      // 先加载提醒列表，检查是否已经接受过
+      const reminders = await api.getReminders()
+      const currentOpenid = await api.getUserOpenid()
+      
+      // 获取分享的提醒详情
+      let sharedReminder = null
+      try {
+        sharedReminder = await api.getReminder(reminderId)
+      } catch (err) {
+        console.error('获取分享提醒详情失败', err)
+        // 如果获取失败，直接加载列表
+        this.loadReminders()
+        return
+      }
+      
+      // 检查当前用户是否已经接受过这个提醒
+      // 通过 owner_openid 和 reminder_time 匹配来判断
+      const ownerOpenid = sharedReminder.ownerOpenid || sharedReminder.owner_openid
+      const reminderTime = sharedReminder.reminderTime
+      
+      const alreadyAccepted = reminders.some(reminder => {
+        // 检查是否是同一个提醒（通过 owner_openid 和 reminder_time 匹配）
+        const reminderOwnerOpenid = reminder.ownerOpenid || reminder.owner_openid
+        return reminderOwnerOpenid === ownerOpenid && 
+               reminder.reminderTime === reminderTime &&
+               reminder.openid === currentOpenid
+      })
+      
+      if (alreadyAccepted) {
+        // 已经接受过，直接加载列表，不显示弹窗
+        console.log('用户已经接受过此提醒，直接加载列表')
+        this.loadReminders()
+        return
+      }
+      
+      // 没有接受过，显示接受/拒绝弹窗
       wx.showModal({
         title: '收到提醒分享',
         content: '是否接受这个提醒？',
