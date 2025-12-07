@@ -1229,9 +1229,10 @@ def delete_reminder(reminder_id):
             logger.info(f'找到 {len(shared_reminders)} 个被分享的提醒，将一并删除')
             
             # 删除所有被分享的提醒
+            # 声明 global scheduler（在函数开始处统一声明）
+            global scheduler
             for shared_reminder in shared_reminders:
                 # 取消被分享提醒的定时任务
-                global scheduler
                 if scheduler is not None:
                     try:
                         scheduler.remove_job(f"reminder_{shared_reminder.id}")
@@ -1252,7 +1253,6 @@ def delete_reminder(reminder_id):
                 logger.info(f'已删除分配记录: ID={assignment.id}')
             
             # 取消原提醒的定时任务
-            global scheduler
             if scheduler is not None:
                 try:
                     scheduler.remove_job(f"reminder_{reminder_id}")
