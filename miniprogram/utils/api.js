@@ -583,6 +583,29 @@ function acceptReminder(reminderId, assignedOpenid) {
 }
 
 /**
+ * 拒绝分享的提醒
+ */
+function rejectReminder(reminderId, assignedOpenid) {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${API_BASE_URL}/reminder/${reminderId}/reject`,
+      method: 'POST',
+      data: {
+        assigned_openid: assignedOpenid
+      },
+      success: (res) => {
+        if (res.data.errcode === 0) {
+          resolve(res.data.data)
+        } else {
+          reject(new Error(res.data.errmsg || '拒绝失败'))
+        }
+      },
+      fail: reject
+    })
+  })
+}
+
+/**
  * 获取分配给自己的提醒
  */
 function getAssignedReminders(openid) {
@@ -625,6 +648,7 @@ module.exports = {
   updateReminderComplete,
   shareReminder,
   acceptReminder,
+  rejectReminder,
   getAssignedReminders
 }
 

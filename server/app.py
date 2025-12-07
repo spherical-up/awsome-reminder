@@ -513,7 +513,6 @@ def send_subscribe_message(openid, template_id, page, data):
         else:
             error_code = result.get('errcode')
             error_msg = result.get('errmsg', '未知错误')
-            logger.error(f'❌ 发送订阅消息失败: openid={openid}, errcode={error_code}, errmsg={error_msg}')
             
             # 常见错误码说明
             error_codes = {
@@ -524,8 +523,15 @@ def send_subscribe_message(openid, template_id, page, data):
                 41030: 'page 路径不正确',
                 40037: '模板ID无效'
             }
-            if error_code in error_codes:
-                logger.error(f'错误说明: {error_codes[error_code]}')
+            
+            # 43101 是用户拒绝接受消息，这是正常的用户行为，不应该当作错误
+            if error_code == 43101:
+                logger.warning(f'⚠️ 用户拒绝接受消息: openid={openid}, errmsg={error_msg}')
+                logger.warning(f'说明: {error_codes.get(error_code, "用户未授权订阅消息")}')
+            else:
+                logger.error(f'❌ 发送订阅消息失败: openid={openid}, errcode={error_code}, errmsg={error_msg}')
+                if error_code in error_codes:
+                    logger.error(f'错误说明: {error_codes[error_code]}')
         
         return result
     except Exception as e:
@@ -630,6 +636,7 @@ def schedule_reminder(reminder):
                     # 发送提醒给所有用户
                     success_count = 0
                     fail_count = 0
+                    refuse_count = 0  # 用户拒绝接受消息的数量
                     
                     for openid in openids_to_notify:
                         # 发送订阅消息
@@ -642,22 +649,32 @@ def schedule_reminder(reminder):
                         
                         logger.info(f'订阅消息发送结果 (openid={openid}): {result}')
                         
-                        if result.get('errcode') == 0:
+                        error_code = result.get('errcode')
+                        if error_code == 0:
                             success_count += 1
                             logger.info(f'✅ 提醒发送成功: openid={openid}')
+                        elif error_code == 43101:
+                            # 用户拒绝接受消息，这是正常的用户行为，不计入失败
+                            refuse_count += 1
+                            logger.info(f'ℹ️ 用户拒绝接受消息: openid={openid}（这是正常的用户选择）')
                         else:
                             fail_count += 1
-                            error_code = result.get('errcode')
                             error_msg = result.get('errmsg', '未知错误')
                             logger.error(f'❌ 提醒发送失败: openid={openid}, errcode={error_code}, errmsg={error_msg}')
                     
                     # 更新所有相关提醒的状态到数据库
+                    # 只要有成功发送的，就标记为 sent；如果全部失败（不包括用户拒绝），才标记为 failed
+                    # 用户拒绝接受消息（43101）不应该影响状态，因为这是用户的选择
+                    if success_count > 0 or (success_count == 0 and fail_count == 0 and refuse_count > 0):
+                        # 有成功发送的，或者只有用户拒绝的，都标记为 sent（因为已经尝试发送了）
+                        final_status = 'sent'
+                    else:
+                        # 只有真正的失败才标记为 failed
+                        final_status = 'failed'
+                    
                     # 更新创建者的提醒状态
                     if owner_reminder:
-                        if success_count > 0:
-                            owner_reminder.status = 'sent'
-                        else:
-                            owner_reminder.status = 'failed'
+                        owner_reminder.status = final_status
                     
                     # 更新所有被分配者的提醒状态
                     for assignment in assignments:
@@ -666,13 +683,10 @@ def schedule_reminder(reminder):
                         ).first()
                         
                         if assigned_reminder:
-                            if success_count > 0:
-                                assigned_reminder.status = 'sent'
-                            else:
-                                assigned_reminder.status = 'failed'
+                            assigned_reminder.status = final_status
                     
                     db.commit()
-                    logger.info(f'提醒发送完成: 成功={success_count}, 失败={fail_count}')
+                    logger.info(f'提醒发送完成: 成功={success_count}, 用户拒绝={refuse_count}, 失败={fail_count}')
                     
                 except Exception as e:
                     db.rollback()
@@ -1832,6 +1846,126 @@ def accept_reminder(reminder_id):
             db.close()
     except Exception as e:
         logger.error(f'接受提醒异常: {str(e)}')
+        return jsonify({
+            'errcode': 500,
+            'errmsg': str(e)
+        }), 500
+
+
+@app.route('/api/reminder/<string:reminder_id>/reject', methods=['POST'])
+def reject_reminder(reminder_id):
+    """
+    拒绝分享的提醒接口
+    
+    请求体:
+    {
+        "assigned_openid": "被分配的好友openid"
+    }
+    """
+    try:
+        data = request.json
+        assigned_openid = data.get('assigned_openid')
+        
+        if not assigned_openid:
+            return jsonify({
+                'errcode': 400,
+                'errmsg': '缺少必要字段: assigned_openid'
+            }), 400
+        
+        db = SessionLocal()
+        try:
+            # 查找原提醒
+            original_reminder = db.query(Reminder).filter(Reminder.id == reminder_id).first()
+            if not original_reminder:
+                return jsonify({
+                    'errcode': 404,
+                    'errmsg': '提醒不存在'
+                }), 404
+            
+            # 不能拒绝自己创建的提醒
+            if original_reminder.owner_openid == assigned_openid:
+                return jsonify({
+                    'errcode': 400,
+                    'errmsg': '不能拒绝自己创建的提醒'
+                }), 400
+            
+            # 创建或更新分配记录为拒绝状态
+            assignment_id = f"{reminder_id}_{assigned_openid}"
+            existing_assignment = db.query(ReminderAssignment).filter(
+                ReminderAssignment.id == assignment_id
+            ).first()
+            
+            if existing_assignment:
+                # 如果之前已经接受过，不允许改为拒绝（或者允许？这里先不允许）
+                if existing_assignment.status == 'accepted':
+                    return jsonify({
+                        'errcode': 400,
+                        'errmsg': '您已经接受过此提醒，无法拒绝'
+                    }), 400
+                # 更新为拒绝状态
+                existing_assignment.status = 'rejected'
+                assignment = existing_assignment
+            else:
+                # 创建新的拒绝记录
+                assignment = ReminderAssignment(
+                    id=assignment_id,
+                    reminder_id=reminder_id,
+                    owner_openid=original_reminder.owner_openid,
+                    assigned_openid=assigned_openid,
+                    status='rejected'
+                )
+                db.add(assignment)
+            
+            db.commit()
+            
+            # 通知创建者（A）提醒被拒绝了
+            owner_openid = original_reminder.owner_openid
+            try:
+                # 构建通知消息
+                reminder_title = original_reminder.thing1[:20] if original_reminder.thing1 else '提醒'
+                template_data = {
+                    'thing1': {'value': '提醒被拒绝'},
+                    'time2': {'value': datetime.now().strftime('%Y-%m-%d %H:%M:%S')},
+                    'thing4': {'value': f'您分享的提醒"{reminder_title}"被拒绝了'}
+                }
+                
+                # 发送订阅消息给创建者
+                result = send_subscribe_message(
+                    openid=owner_openid,
+                    template_id=TEMPLATE_ID,
+                    page='pages/index/index',
+                    data=template_data
+                )
+                
+                if result.get('errcode') == 0:
+                    logger.info(f'✅ 拒绝通知发送成功: owner={owner_openid}, reminder_id={reminder_id}')
+                else:
+                    # 发送失败不影响拒绝操作
+                    logger.warning(f'⚠️ 拒绝通知发送失败: owner={owner_openid}, errcode={result.get("errcode")}')
+            except Exception as e:
+                # 通知失败不影响拒绝操作
+                logger.error(f'发送拒绝通知异常: {str(e)}')
+            
+            logger.info(f'拒绝提醒成功: reminder_id={reminder_id}, assigned={assigned_openid}')
+            
+            return jsonify({
+                'errcode': 0,
+                'errmsg': 'success',
+                'data': {
+                    'message': '已拒绝提醒，创建者已收到通知'
+                }
+            })
+        except Exception as e:
+            db.rollback()
+            logger.error(f'拒绝提醒失败: {str(e)}', exc_info=True)
+            return jsonify({
+                'errcode': 500,
+                'errmsg': str(e)
+            }), 500
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error(f'拒绝提醒异常: {str(e)}')
         return jsonify({
             'errcode': 500,
             'errmsg': str(e)
