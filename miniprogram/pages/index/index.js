@@ -407,34 +407,32 @@ Page({
         }
       }
       
-      // 如果提醒开启了订阅，请求订阅消息授权
-      if (needSubscribe) {
-        try {
-          const tmplIds = [
-            'is4mEq0nlt5fJRn-Pflnr-wJxoCKOz9qty857QmH7Bw'
-          ]
-          
-          console.log('提醒已开启订阅，请求订阅消息授权...')
-          const subscribeRes = await subscribeMessage.requestSubscribeMessage(tmplIds)
-          
-          // 检查订阅结果
-          let hasAccepted = false
-          for (let tmplId of tmplIds) {
-            if (subscribeRes[tmplId] === 'accept') {
-              hasAccepted = true
-              break
-            }
+      // 无论是否开启订阅，都请求订阅消息授权（确保能收到提醒通知）
+      try {
+        const tmplIds = [
+          'is4mEq0nlt5fJRn-Pflnr-wJxoCKOz9qty857QmH7Bw'
+        ]
+        
+        console.log('请求订阅消息授权，确保能收到提醒通知...')
+        const subscribeRes = await subscribeMessage.requestSubscribeMessage(tmplIds)
+        
+        // 检查订阅结果
+        let hasAccepted = false
+        for (let tmplId of tmplIds) {
+          if (subscribeRes[tmplId] === 'accept') {
+            hasAccepted = true
+            break
           }
-          
-          if (hasAccepted) {
-            console.log('✅ 订阅消息授权成功，提醒时间到达时将收到通知')
-          } else {
-            console.log('⚠️ 用户未授权订阅消息，提醒时间到达时将无法收到通知')
-          }
-        } catch (err) {
-          console.error('请求订阅消息授权失败', err)
-          // 订阅授权失败不影响接受提醒，只是提醒时间到达时无法收到通知
         }
+        
+        if (hasAccepted) {
+          console.log('✅ 订阅消息授权成功，提醒时间到达时将收到通知')
+        } else {
+          console.log('⚠️ 用户未授权订阅消息，提醒时间到达时将无法收到通知')
+        }
+      } catch (err) {
+        console.error('请求订阅消息授权失败', err)
+        // 订阅授权失败不影响接受提醒
       }
       
       if (result.message) {
@@ -456,7 +454,7 @@ Page({
       // 延迟再次刷新，确保数据同步（解决有时列表不刷新的问题）
       setTimeout(() => {
         this.loadReminders()
-      }, 500)
+      }, 1000)
     } catch (err) {
       wx.hideLoading()
       console.error('接受提醒失败', err)

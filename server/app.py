@@ -1082,11 +1082,50 @@ def delete_reminder(reminder_id):
                     'errmsg': '提醒不存在'
                 }), 404
             
-            # 删除提醒
-            db.delete(reminder)
-            db.commit()
+            # 权限检查：只有创建者可以删除提醒
+            if reminder.openid != reminder.owner_openid:
+                return jsonify({
+                    'errcode': 403,
+                    'errmsg': '不能删除他人分享的提醒'
+                }), 403
             
-            # 取消定时任务
+            # 保存信息用于删除被分享的提醒
+            owner_openid = reminder.owner_openid
+            reminder_time = reminder.reminder_time
+            
+            # 查找所有被分享的提醒（通过owner_openid和reminder_time）
+            shared_reminders = db.query(Reminder).filter(
+                Reminder.owner_openid == owner_openid,
+                Reminder.openid != owner_openid,
+                Reminder.reminder_time == reminder_time
+            ).all()
+            
+            logger.info(f'找到 {len(shared_reminders)} 个被分享的提醒，将一并删除')
+            
+            # 删除所有被分享的提醒
+            for shared_reminder in shared_reminders:
+                # 取消被分享提醒的定时任务
+                global scheduler
+                if scheduler is not None:
+                    try:
+                        scheduler.remove_job(f"reminder_{shared_reminder.id}")
+                    except:
+                        pass
+                
+                # 删除提醒
+                db.delete(shared_reminder)
+                logger.info(f'已删除被分享的提醒: ID={shared_reminder.id}, openid={shared_reminder.openid}')
+            
+            # 删除分配记录
+            assignments = db.query(ReminderAssignment).filter(
+                ReminderAssignment.reminder_id == reminder_id
+            ).all()
+            
+            for assignment in assignments:
+                db.delete(assignment)
+                logger.info(f'已删除分配记录: ID={assignment.id}')
+            
+            # 取消原提醒的定时任务
             global scheduler
             if scheduler is not None:
                 try:
@@ -1094,7 +1133,11 @@ def delete_reminder(reminder_id):
                 except:
                     pass
             
-            logger.info(f'删除提醒成功: {reminder_id}')
+            # 删除原提醒
+            db.delete(reminder)
+            db.commit()
+            
+            logger.info(f'删除提醒成功: {reminder_id}, 同时删除了 {len(shared_reminders)} 个被分享的提醒和 {len(assignments)} 个分配记录')
             
             return jsonify({
                 'errcode': 0,
