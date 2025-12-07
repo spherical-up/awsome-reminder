@@ -447,10 +447,10 @@ def get_access_token():
     global access_token, token_expires_at
     
     # 如果 token 未过期，直接返回
-    # 确保 token_expires_at 是 datetime 对象
-    if access_token and token_expires_at:
-        # 先进行类型检查和转换，确保 token_expires_at 是 datetime 对象
-        # 这是关键：必须在比较之前确保类型正确
+    # 首先确保 token_expires_at 是 datetime 对象（在比较之前）
+    if access_token and token_expires_at is not None:
+        # 强制类型检查和转换，确保 token_expires_at 是 datetime 对象
+        # 这是关键：必须在任何比较之前确保类型正确
         if not isinstance(token_expires_at, datetime):
             # 如果不是 datetime 对象，尝试转换
             if isinstance(token_expires_at, (int, float)):
@@ -466,21 +466,23 @@ def get_access_token():
                     token_expires_at = None
             else:
                 # 如果类型不对，重置 token_expires_at
-                logger.warning(f'token_expires_at 类型异常: {type(token_expires_at)}, 重置为 None')
+                logger.warning(f'token_expires_at 类型异常: {type(token_expires_at)}, 值={token_expires_at}, 重置为 None')
                 token_expires_at = None
         
-        # 再次检查类型，确保是 datetime 对象后再比较
+        # 再次严格检查类型，确保是 datetime 对象后再比较
+        # 使用 isinstance 检查，避免任何类型问题
         if isinstance(token_expires_at, datetime):
             try:
-                if datetime.now() < token_expires_at:
+                now = datetime.now()
+                if now < token_expires_at:
                     return access_token
-            except TypeError as e:
+            except (TypeError, ValueError) as e:
                 logger.error(f'token_expires_at 类型比较错误: {e}, token_expires_at类型={type(token_expires_at)}, 值={token_expires_at}')
                 token_expires_at = None
         else:
             # 如果类型仍然不对，重置 token_expires_at
             if token_expires_at is not None:
-                logger.warning(f'token_expires_at 类型仍然异常: {type(token_expires_at)}, 重置为 None')
+                logger.warning(f'token_expires_at 类型仍然异常: {type(token_expires_at)}, 值={token_expires_at}, 重置为 None')
                 token_expires_at = None
     
     url = f'https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={APPID}&secret={APPSECRET}'
