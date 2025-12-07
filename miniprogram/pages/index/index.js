@@ -392,6 +392,49 @@ Page({
         return
       }
       
+      // 立即重新加载列表
+      await this.loadReminders()
+      
+      // 先请求订阅消息授权（在显示toast之前，确保授权弹窗能正常显示）
+      // 注意：微信小程序订阅消息必须用户主动授权，无法默认给权限
+      try {
+        const tmplIds = [
+          'is4mEq0nlt5fJRn-Pflnr-wJxoCKOz9qty857QmH7Bw'
+        ]
+        
+        console.log('请求订阅消息授权，确保能收到提醒通知...')
+        const subscribeRes = await subscribeMessage.requestSubscribeMessage(tmplIds)
+        
+        // 检查订阅结果
+        let hasAccepted = false
+        for (let tmplId of tmplIds) {
+          if (subscribeRes[tmplId] === 'accept') {
+            hasAccepted = true
+            break
+          }
+        }
+        
+        if (hasAccepted) {
+          console.log('✅ 订阅消息授权成功，提醒时间到达时将收到通知')
+        } else {
+          console.log('⚠️ 用户未授权订阅消息，提醒时间到达时将无法收到通知')
+          // 提示用户需要授权才能收到通知
+          wx.showModal({
+            title: '提示',
+            content: '您未授权订阅消息，提醒时间到达时将无法收到通知。如需接收通知，请在设置中开启订阅消息权限。',
+            showCancel: false
+          })
+        }
+      } catch (err) {
+        console.error('请求订阅消息授权失败', err)
+        // 授权失败不影响接受提醒，但提示用户
+        wx.showModal({
+          title: '提示',
+          content: '订阅消息授权失败，提醒时间到达时可能无法收到通知。',
+          showCancel: false
+        })
+      }
+      
       // 显示接受成功提示
       if (result.message) {
         wx.showToast({
@@ -406,39 +449,6 @@ Page({
           duration: 2000
         })
       }
-      
-      // 立即重新加载列表
-      await this.loadReminders()
-      
-      // 延迟请求订阅消息授权（确保loading和toast都关闭后再请求，避免弹窗被遮挡）
-      setTimeout(async () => {
-        try {
-          const tmplIds = [
-            'is4mEq0nlt5fJRn-Pflnr-wJxoCKOz9qty857QmH7Bw'
-          ]
-          
-          console.log('请求订阅消息授权，确保能收到提醒通知...')
-          const subscribeRes = await subscribeMessage.requestSubscribeMessage(tmplIds)
-          
-          // 检查订阅结果
-          let hasAccepted = false
-          for (let tmplId of tmplIds) {
-            if (subscribeRes[tmplId] === 'accept') {
-              hasAccepted = true
-              break
-            }
-          }
-          
-          if (hasAccepted) {
-            console.log('✅ 订阅消息授权成功，提醒时间到达时将收到通知')
-          } else {
-            console.log('⚠️ 用户未授权订阅消息，提醒时间到达时将无法收到通知')
-          }
-        } catch (err) {
-          console.error('请求订阅消息授权失败', err)
-          // 订阅授权失败不影响接受提醒
-        }
-      }, 2500) // 等待toast消失后再请求授权
       
       // 延迟再次刷新，确保数据同步（解决有时列表不刷新的问题）
       setTimeout(() => {

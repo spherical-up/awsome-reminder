@@ -512,32 +512,31 @@ def send_subscribe_message(openid, template_id, page, data):
         response = requests.post(url, json=payload, timeout=10)
         result = response.json()
         
-        logger.info(f'微信API响应: {result}')
+        # 先检查错误码，如果是43101则不记录为ERROR
+        error_code = result.get('errcode')
+        error_msg = result.get('errmsg', '未知错误')
         
-        if result.get('errcode') == 0:
+        # 43101 是用户拒绝接受消息，这是正常的用户行为，不应该当作错误
+        if error_code == 43101:
+            # 43101不记录为ERROR，只记录INFO级别的日志
+            logger.info(f'微信API响应: {result}')
+            logger.info(f'ℹ️ 用户未授权订阅消息: openid={openid}（这是正常的用户选择，不是错误）')
+        elif error_code == 0:
+            logger.info(f'微信API响应: {result}')
             logger.info(f'✅ 发送订阅消息成功: openid={openid}')
         else:
-            error_code = result.get('errcode')
-            error_msg = result.get('errmsg', '未知错误')
-            
-            # 常见错误码说明
+            logger.info(f'微信API响应: {result}')
+            # 其他错误码才记录为ERROR
             error_codes = {
                 40001: 'access_token 无效，需要重新获取',
                 40003: 'openid 无效',
-                43101: '用户拒绝接受消息（需要重新授权）',
                 47003: '模板参数不正确',
                 41030: 'page 路径不正确',
                 40037: '模板ID无效'
             }
-            
-            # 43101 是用户拒绝接受消息，这是正常的用户行为，不应该当作错误
-            if error_code == 43101:
-                logger.warning(f'⚠️ 用户拒绝接受消息: openid={openid}, errmsg={error_msg}')
-                logger.warning(f'说明: {error_codes.get(error_code, "用户未授权订阅消息")}')
-            else:
-                logger.error(f'❌ 发送订阅消息失败: openid={openid}, errcode={error_code}, errmsg={error_msg}')
-                if error_code in error_codes:
-                    logger.error(f'错误说明: {error_codes[error_code]}')
+            logger.error(f'❌ 发送订阅消息失败: openid={openid}, errcode={error_code}, errmsg={error_msg}')
+            if error_code in error_codes:
+                logger.error(f'错误说明: {error_codes[error_code]}')
         
         return result
     except Exception as e:
