@@ -749,8 +749,12 @@ def schedule_reminder(reminder):
                     # 添加所有被分配者
                     for assignment in assignments:
                         # 验证assignment对应的提醒是否存在且开启了订阅
+                        # 注意：被分配者的提醒ID格式是 {assigned_openid}_{create_timestamp}，不是 {assigned_openid}_{reminder_time_stamp}
+                        # 所以需要通过 owner_openid、openid 和 reminder_time 来查找
                         assigned_reminder = db.query(Reminder).filter(
-                            Reminder.id == f"{assignment.assigned_openid}_{reminder_time_stamp}"
+                            Reminder.owner_openid == owner_openid,
+                            Reminder.openid == assignment.assigned_openid,
+                            Reminder.reminder_time == reminder_time_stamp
                         ).first()
                         
                         if assigned_reminder and assigned_reminder.enable_subscribe:
@@ -804,8 +808,11 @@ def schedule_reminder(reminder):
                     
                     # 更新所有被分配者的提醒状态
                     for assignment in assignments:
+                        # 通过 owner_openid、openid 和 reminder_time 查找被分配者的提醒
                         assigned_reminder = db.query(Reminder).filter(
-                            Reminder.id == f"{assignment.assigned_openid}_{reminder_time_stamp}"
+                            Reminder.owner_openid == owner_openid,
+                            Reminder.openid == assignment.assigned_openid,
+                            Reminder.reminder_time == reminder_time_stamp
                         ).first()
                         
                         if assigned_reminder:
@@ -1998,10 +2005,10 @@ def accept_reminder(reminder_id):
             )
             db.add(new_reminder)
             
-            # 如果原提醒开启了订阅，也为新提醒安排定时任务
-            if new_reminder.enable_subscribe and new_reminder.reminder_time:
-                reminder_dict = new_reminder.to_dict()
-                schedule_reminder(reminder_dict)
+            # 注意：不需要为新提醒创建定时任务
+            # 因为原提醒（创建者的提醒）已经安排了定时任务
+            # 定时任务会查找所有相关的提醒（包括创建者和所有被分配者）并发送通知
+            # 如果为新提醒也创建定时任务，会导致重复发送通知
             
             db.commit()
             
