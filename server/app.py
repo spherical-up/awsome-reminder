@@ -1233,8 +1233,18 @@ def get_reminders():
             for r in reminders:
                 reminder_dict = r.to_dict()
                 # 标记来自分享的提醒
-                if r.owner_openid != r.openid:
+                # 判断逻辑：
+                # 1. 如果 owner_openid == openid，说明是自己创建的提醒，fromOwner = False
+                # 2. 如果 owner_openid != openid，说明是被分享的提醒，fromOwner = True
+                # 这是最核心的判断逻辑，简单且可靠
+                if r.owner_openid == r.openid:
+                    # 自己创建的提醒，明确设置 fromOwner = False
+                    reminder_dict['fromOwner'] = False
+                    logger.debug(f'自己创建的提醒: id={r.id}, owner={r.owner_openid}, openid={r.openid}')
+                else:
+                    # 被分享的提醒，设置 fromOwner = True
                     reminder_dict['fromOwner'] = True
+                    logger.debug(f'来自分享的提醒: id={r.id}, owner={r.owner_openid}, openid={r.openid}')
                 user_reminders.append(reminder_dict)
             
             return jsonify({

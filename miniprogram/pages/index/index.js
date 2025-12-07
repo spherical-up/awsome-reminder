@@ -33,18 +33,73 @@ Page({
 
   // 加载提醒列表
   async loadReminders() {
+    // 防止重复加载
+    if (this.data.loading) {
+      console.log('正在加载中，跳过重复请求')
+      return
+    }
+    
     this.setData({ loading: true })
     try {
       // getReminders 已经返回了所有提醒（包括被分配的）
       const reminders = await api.getReminders()
-      const completedCount = reminders.filter(r => r.completed).length
+      
+      // 获取当前用户的 openid，用于安全检查
+      const currentOpenid = await api.getUserOpenid()
+      
+      // 对提醒列表进行安全检查，确保 fromOwner 字段正确
+      const safeReminders = reminders.map(reminder => {
+        // 安全检查：如果 ownerOpenid === openid，强制设置 fromOwner = false
+        // 这样可以确保自己创建的提醒一定有分享按钮
+        if (reminder.ownerOpenid === currentOpenid || reminder.ownerOpenid === reminder.openid) {
+          if (reminder.fromOwner) {
+            console.warn('检测到数据不一致：自己创建的提醒被标记为 fromOwner，已修正', {
+              id: reminder.id,
+              ownerOpenid: reminder.ownerOpenid,
+              openid: reminder.openid,
+              fromOwner: reminder.fromOwner
+            })
+          }
+          reminder.fromOwner = false
+        } else if (reminder.ownerOpenid && reminder.ownerOpenid !== currentOpenid && reminder.ownerOpenid !== reminder.openid) {
+          // 如果 ownerOpenid 存在且不等于当前用户，且不等于 openid，则应该是被分享的
+          reminder.fromOwner = true
+        }
+        
+        // 记录日志，便于调试
+        if (reminder.fromOwner) {
+          console.log('来自分享的提醒:', {
+            id: reminder.id,
+            thing1: reminder.thing1,
+            ownerOpenid: reminder.ownerOpenid,
+            openid: reminder.openid
+          })
+        } else {
+          console.log('自己创建的提醒:', {
+            id: reminder.id,
+            thing1: reminder.thing1,
+            ownerOpenid: reminder.ownerOpenid,
+            openid: reminder.openid
+          })
+        }
+        
+        return reminder
+      })
+      
+      const completedCount = safeReminders.filter(r => r.completed).length
+      
+      // 强制更新数据，确保安卓手机也能正常刷新
       this.setData({
-        reminders: reminders,
-        totalCount: reminders.length,
+        reminders: safeReminders,
+        totalCount: safeReminders.length,
         completedCount: completedCount,
         loading: false
+      }, () => {
+        // setData 完成后的回调，确保数据已更新
+        console.log('提醒列表已更新，数量:', safeReminders.length)
       })
-      app.globalData.reminders = reminders
+      
+      app.globalData.reminders = safeReminders
     } catch (err) {
       console.error('加载提醒列表失败', err)
       wx.showToast({
@@ -392,9 +447,6 @@ Page({
         return
       }
       
-      // 立即重新加载列表
-      await this.loadReminders()
-      
       // 先请求订阅消息授权（在显示toast之前，确保授权弹窗能正常显示）
       // 注意：微信小程序订阅消息必须用户主动授权，无法默认给权限
       try {
@@ -440,20 +492,30 @@ Page({
         wx.showToast({
           title: result.message,
           icon: 'none',
-          duration: 2000
+          duration: 1500
         })
       } else {
         wx.showToast({
           title: '已接受提醒',
           icon: 'success',
-          duration: 2000
+          duration: 1500
         })
       }
       
-      // 延迟再次刷新，确保数据同步（解决有时列表不刷新的问题）
+      // 立即刷新列表（不等待toast）
+      await this.loadReminders()
+      
+      // 多次刷新确保数据同步（解决安卓手机有时不刷新的问题）
+      // 第一次刷新：立即刷新
+      // 第二次刷新：500ms后刷新（确保数据已同步）
+      // 第三次刷新：2000ms后刷新（toast消失后再次刷新）
       setTimeout(() => {
         this.loadReminders()
-      }, 1000)
+      }, 500)
+      
+      setTimeout(() => {
+        this.loadReminders()
+      }, 2000)
     } catch (err) {
       wx.hideLoading()
       console.error('接受提醒失败', err)
