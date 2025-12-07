@@ -294,6 +294,18 @@
   color: #999999;
 }
 
+/* 过期且未完成的提醒标题显示红色 */
+.reminder-title.expired {
+  color: #ff4444;
+  font-weight: 600;
+}
+
+/* 已完成的提醒不显示红色，保持灰色删除线 */
+.reminder-item.completed .reminder-title.expired {
+  color: #999999;
+  font-weight: 500;
+}
+
 .reminder-meta {
   display: inline-flex;
   align-items: center;

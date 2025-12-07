@@ -39,7 +39,7 @@
           </view>
         </view>
         <view class="reminder-text {{item.fromOwner ? 'readonly' : ''}}" bindtap="editReminder" data-reminder="{{item}}">
-          <text class="reminder-title">{{item.thing1 || item.title}}</text>
+          <text class="reminder-title {{item.isExpired ? 'expired' : ''}}">{{item.thing1 || item.title}}</text>
           <view class="reminder-meta" wx:if="{{item.time}}">
             <text class="time-icon">🕐</text>
             <text class="reminder-time">{{item.time}}</text>

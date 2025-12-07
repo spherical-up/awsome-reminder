@@ -48,6 +48,8 @@ Page({
       const currentOpenid = await api.getUserOpenid()
       
       // 对提醒列表进行安全检查，确保 fromOwner 字段正确
+      // 同时检查是否过期
+      const now = Date.now()
       const safeReminders = reminders.map(reminder => {
         // 安全检查：如果 ownerOpenid === openid，强制设置 fromOwner = false
         // 这样可以确保自己创建的提醒一定有分享按钮
@@ -66,20 +68,30 @@ Page({
           reminder.fromOwner = true
         }
         
+        // 检查是否过期：如果提醒时间已过且未完成，标记为过期
+        if (reminder.reminderTime && !reminder.completed) {
+          const reminderTime = reminder.reminderTime
+          reminder.isExpired = reminderTime < now
+        } else {
+          reminder.isExpired = false
+        }
+        
         // 记录日志，便于调试
         if (reminder.fromOwner) {
           console.log('来自分享的提醒:', {
             id: reminder.id,
             thing1: reminder.thing1,
             ownerOpenid: reminder.ownerOpenid,
-            openid: reminder.openid
+            openid: reminder.openid,
+            isExpired: reminder.isExpired
           })
         } else {
           console.log('自己创建的提醒:', {
             id: reminder.id,
             thing1: reminder.thing1,
             ownerOpenid: reminder.ownerOpenid,
-            openid: reminder.openid
+            openid: reminder.openid,
+            isExpired: reminder.isExpired
           })
         }
         
