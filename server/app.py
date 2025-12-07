@@ -451,10 +451,20 @@ def get_access_token():
     if access_token and token_expires_at:
         # 如果 token_expires_at 是 float（时间戳），转换为 datetime
         if isinstance(token_expires_at, (int, float)):
-            token_expires_at = datetime.fromtimestamp(token_expires_at)
+            # 如果是秒级时间戳，需要除以1000（如果是毫秒级）
+            if token_expires_at > 1e10:  # 毫秒级时间戳（大于10位数）
+                token_expires_at = datetime.fromtimestamp(token_expires_at / 1000)
+            else:  # 秒级时间戳
+                token_expires_at = datetime.fromtimestamp(token_expires_at)
         
-        if datetime.now() < token_expires_at:
-            return access_token
+        # 确保 token_expires_at 是 datetime 对象后再比较
+        if isinstance(token_expires_at, datetime):
+            if datetime.now() < token_expires_at:
+                return access_token
+        else:
+            # 如果类型仍然不对，重置 token_expires_at
+            logger.warning(f'token_expires_at 类型异常: {type(token_expires_at)}, 重置为 None')
+            token_expires_at = None
     
     url = f'https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={APPID}&secret={APPSECRET}'
     
