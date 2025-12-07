@@ -38,14 +38,14 @@
             <text class="check-icon" wx:if="{{item.completed}}">✓</text>
           </view>
         </view>
-        <view class="reminder-text" bindtap="editReminder" data-reminder="{{item}}">
+        <view class="reminder-text {{item.fromOwner ? 'readonly' : ''}}" bindtap="editReminder" data-reminder="{{item}}">
           <text class="reminder-title">{{item.thing1 || item.title}}</text>
           <view class="reminder-meta" wx:if="{{item.time}}">
             <text class="time-icon">🕐</text>
             <text class="reminder-time">{{item.time}}</text>
           </view>
           <view class="reminder-source" wx:if="{{item.fromOwner}}">
-            <text class="source-text">📤 来自分享</text>
+            <text class="source-text">📤 来自分享（只读）</text>
           </view>
         </view>
       </view>
@@ -60,7 +60,7 @@
         >
           <text class="share-icon">📤</text>
         </button>
-        <view class="delete-btn" bindtap="deleteReminder" data-reminder="{{item}}">
+        <view class="delete-btn {{item.fromOwner ? 'disabled' : ''}}" bindtap="deleteReminder" data-reminder="{{item}}" wx:if="{{!item.fromOwner}}">
           <text class="delete-icon">🗑️</text>
         </view>
       </view>

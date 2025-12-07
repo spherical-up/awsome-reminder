@@ -557,7 +557,7 @@ def schedule_reminder(reminder):
         def send_reminder():
             """发送提醒的函数"""
             try:
-                logger.info(f'开始发送提醒: ID={reminder["id"]}, openid={reminder["openid"]}')
+                logger.info(f'开始发送提醒: ID={reminder["id"]}, openid={reminder["openid"]}, owner_openid={reminder.get("ownerOpenid")}')
                 
                 # 构建模板数据
                 # 模板字段：事项主题(thing1)、事项时间(time2)、事项描述(thing4)
@@ -572,46 +572,112 @@ def schedule_reminder(reminder):
                 
                 logger.info(f'模板数据: {template_data}')
                 
-                # 发送订阅消息
-                result = send_subscribe_message(
-                    openid=reminder['openid'],
-                    template_id=TEMPLATE_ID,
-                    page='pages/index/index',
-                    data=template_data
-                )
-                
-                logger.info(f'订阅消息发送结果: {result}')
-                
-                if result.get('errcode') == 0:
-                    logger.info(f'✅ 提醒发送成功: ID={reminder["id"]}, openid={reminder["openid"]}')
-                    # 更新提醒状态到数据库
-                    db = SessionLocal()
-                    try:
-                        reminder_obj = db.query(Reminder).filter(Reminder.id == reminder['id']).first()
-                        if reminder_obj:
-                            reminder_obj.status = 'sent'
-                            db.commit()
-                    except Exception as e:
-                        db.rollback()
-                        logger.error(f'更新提醒状态失败: {str(e)}')
-                    finally:
-                        db.close()
-                else:
-                    error_code = result.get('errcode')
-                    error_msg = result.get('errmsg', '未知错误')
-                    logger.error(f'❌ 提醒发送失败: ID={reminder["id"]}, errcode={error_code}, errmsg={error_msg}')
-                    # 更新提醒状态到数据库
-                    db = SessionLocal()
-                    try:
-                        reminder_obj = db.query(Reminder).filter(Reminder.id == reminder['id']).first()
-                        if reminder_obj:
-                            reminder_obj.status = 'failed'
-                            db.commit()
-                    except Exception as e:
-                        db.rollback()
-                        logger.error(f'更新提醒状态失败: {str(e)}')
-                    finally:
-                        db.close()
+                db = SessionLocal()
+                try:
+                    # 查找所有需要发送提醒的用户
+                    # 1. 创建者（owner_openid）
+                    # 2. 所有被分配者（通过reminder_assignments表查找）
+                    owner_openid = reminder.get('ownerOpenid') or reminder.get('owner_openid')
+                    reminder_time_stamp = reminder.get('reminderTime')
+                    current_reminder_id = reminder.get('id')
+                    current_openid = reminder.get('openid')
+                    
+                    # 确定原提醒ID
+                    # 如果当前提醒是创建者的（openid == owner_openid），则当前ID就是原提醒ID
+                    # 如果当前提醒是被分配者的（openid != owner_openid），则需要通过owner_openid和reminder_time构造原提醒ID
+                    if current_openid == owner_openid:
+                        original_reminder_id = current_reminder_id
+                    else:
+                        # 被分配者的提醒，原提醒ID是 owner_openid_reminder_time
+                        original_reminder_id = f"{owner_openid}_{reminder_time_stamp}"
+                    
+                    # 获取创建者的提醒记录（通过owner_openid和reminder_time查找）
+                    owner_reminder = db.query(Reminder).filter(
+                        Reminder.owner_openid == owner_openid,
+                        Reminder.openid == owner_openid,
+                        Reminder.reminder_time == reminder_time_stamp
+                    ).first()
+                    
+                    # 获取所有被分配的提醒记录（通过原提醒ID查找）
+                    # 注意：assignment.reminder_id是原提醒的ID（owner_openid_reminder_time）
+                    assignments = db.query(ReminderAssignment).filter(
+                        ReminderAssignment.reminder_id == original_reminder_id,
+                        ReminderAssignment.status == 'accepted'
+                    ).all()
+                    
+                    # 收集所有需要发送提醒的openid
+                    openids_to_notify = set()
+                    
+                    # 添加创建者
+                    if owner_reminder and owner_reminder.enable_subscribe:
+                        openids_to_notify.add(owner_openid)
+                        logger.info(f'添加创建者到通知列表: {owner_openid}')
+                    
+                    # 添加所有被分配者
+                    for assignment in assignments:
+                        # 验证assignment对应的提醒是否存在且开启了订阅
+                        assigned_reminder = db.query(Reminder).filter(
+                            Reminder.id == f"{assignment.assigned_openid}_{reminder_time_stamp}"
+                        ).first()
+                        
+                        if assigned_reminder and assigned_reminder.enable_subscribe:
+                            openids_to_notify.add(assignment.assigned_openid)
+                            logger.info(f'添加被分配者到通知列表: {assignment.assigned_openid}')
+                    
+                    logger.info(f'需要发送提醒的用户数量: {len(openids_to_notify)}, 用户列表: {list(openids_to_notify)}')
+                    
+                    # 发送提醒给所有用户
+                    success_count = 0
+                    fail_count = 0
+                    
+                    for openid in openids_to_notify:
+                        # 发送订阅消息
+                        result = send_subscribe_message(
+                            openid=openid,
+                            template_id=TEMPLATE_ID,
+                            page='pages/index/index',
+                            data=template_data
+                        )
+                        
+                        logger.info(f'订阅消息发送结果 (openid={openid}): {result}')
+                        
+                        if result.get('errcode') == 0:
+                            success_count += 1
+                            logger.info(f'✅ 提醒发送成功: openid={openid}')
+                        else:
+                            fail_count += 1
+                            error_code = result.get('errcode')
+                            error_msg = result.get('errmsg', '未知错误')
+                            logger.error(f'❌ 提醒发送失败: openid={openid}, errcode={error_code}, errmsg={error_msg}')
+                    
+                    # 更新所有相关提醒的状态到数据库
+                    # 更新创建者的提醒状态
+                    if owner_reminder:
+                        if success_count > 0:
+                            owner_reminder.status = 'sent'
+                        else:
+                            owner_reminder.status = 'failed'
+                    
+                    # 更新所有被分配者的提醒状态
+                    for assignment in assignments:
+                        assigned_reminder = db.query(Reminder).filter(
+                            Reminder.id == f"{assignment.assigned_openid}_{reminder_time_stamp}"
+                        ).first()
+                        
+                        if assigned_reminder:
+                            if success_count > 0:
+                                assigned_reminder.status = 'sent'
+                            else:
+                                assigned_reminder.status = 'failed'
+                    
+                    db.commit()
+                    logger.info(f'提醒发送完成: 成功={success_count}, 失败={fail_count}')
+                    
+                except Exception as e:
+                    db.rollback()
+                    logger.error(f'发送提醒异常: ID={reminder["id"]}, 错误: {str(e)}', exc_info=True)
+                finally:
+                    db.close()
             except Exception as e:
                 logger.error(f'发送提醒异常: ID={reminder["id"]}, 错误: {str(e)}', exc_info=True)
         
@@ -687,8 +753,9 @@ def create_reminder():
             }), 400
         
         # 创建提醒记录
-        # 使用 openid + reminder_time 组合作为唯一 ID
-        reminder_id = f"{data['openid']}_{data['reminderTime']}"
+        # 使用 openid + 创建时间戳（毫秒）作为唯一 ID，这样ID不会因为reminderTime改变而改变
+        create_timestamp = int(datetime.now().timestamp() * 1000)  # 当前时间戳（毫秒）
+        reminder_id = f"{data['openid']}_{create_timestamp}"
         owner_openid = data['openid']  # 创建者就是当前用户
         db = SessionLocal()
         try:
@@ -840,6 +907,18 @@ def reminder_detail(reminder_id):
                         'errmsg': '提醒不存在'
                     }), 404
                 
+                # 权限检查：只有创建者（owner_openid）可以修改提醒
+                # 如果 openid != owner_openid，说明这是被分享的提醒，不能修改
+                if reminder.openid != reminder.owner_openid:
+                    return jsonify({
+                        'errcode': 403,
+                        'errmsg': '不能修改他人分享的提醒'
+                    }), 403
+                
+                # 保存原始提醒时间，用于查找被分享的提醒
+                original_reminder_time = reminder.reminder_time
+                original_owner_openid = reminder.owner_openid
+                
                 # 更新字段
                 if 'thing1' in data:
                     reminder.thing1 = data['thing1']
@@ -882,9 +961,74 @@ def reminder_detail(reminder_id):
                     else:
                         reminder.status = 'no_subscribe'
                 
+                # 同步更新所有被分享的提醒副本
+                # 由于ID现在是基于openid_创建时间戳，不会因为reminderTime改变而改变
+                # 所以可以直接通过owner_openid和reminder_time查找所有被分享的提醒
+                # 如果reminderTime改变了，我们需要先通过原reminder_time查找，然后更新
+                
+                # 查找所有被分享的提醒（owner_openid相同，但openid不同）
+                # 如果reminderTime改变了，先通过原reminder_time查找
+                if 'reminderTime' in data and data['reminderTime'] != original_reminder_time:
+                    # reminderTime改变了，先通过原reminder_time查找所有被分享的提醒
+                    shared_reminders = db.query(Reminder).filter(
+                        Reminder.owner_openid == original_owner_openid,
+                        Reminder.openid != original_owner_openid,
+                        Reminder.reminder_time == original_reminder_time
+                    ).all()
+                else:
+                    # reminderTime未改变，直接通过当前reminder_time查找
+                    current_reminder_time = reminder.reminder_time
+                    shared_reminders = db.query(Reminder).filter(
+                        Reminder.owner_openid == original_owner_openid,
+                        Reminder.openid != original_owner_openid,
+                        Reminder.reminder_time == current_reminder_time
+                    ).all()
+                
+                logger.info(f'找到 {len(shared_reminders)} 个被分享的提醒副本，开始同步更新')
+                
+                for shared_reminder in shared_reminders:
+                    # 同步更新字段（直接更新，不删除重建）
+                    if 'thing1' in data:
+                        shared_reminder.thing1 = data['thing1']
+                        shared_reminder.title = data['thing1']
+                    if 'thing4' in data:
+                        shared_reminder.thing4 = data['thing4']
+                    if 'time' in data:
+                        shared_reminder.time = data['time']
+                    if 'reminderTime' in data:
+                        shared_reminder.reminder_time = data['reminderTime']
+                    
+                    # 同步订阅状态
+                    if 'enableSubscribe' in data:
+                        shared_reminder.enable_subscribe = data['enableSubscribe']
+                    
+                    # 如果开启了订阅，为被分享的提醒也重新安排定时任务
+                    if shared_reminder.enable_subscribe and shared_reminder.reminder_time:
+                        # 先取消旧任务
+                        if scheduler is not None:
+                            try:
+                                scheduler.remove_job(f"reminder_{shared_reminder.id}")
+                            except:
+                                pass
+                        
+                        # 重新安排任务
+                        shared_reminder_dict = shared_reminder.to_dict()
+                        schedule_reminder(shared_reminder_dict)
+                        shared_reminder.status = 'pending'
+                    else:
+                        # 未开启订阅，根据时间判断状态
+                        shared_reminder_time = datetime.fromtimestamp(shared_reminder.reminder_time / 1000)
+                        now = datetime.now()
+                        if shared_reminder_time <= now:
+                            shared_reminder.status = 'expired'
+                        else:
+                            shared_reminder.status = 'no_subscribe'
+                    
+                    logger.info(f'已同步更新被分享的提醒: ID={shared_reminder.id}, openid={shared_reminder.openid}')
+                
                 db.commit()
                 
-                logger.info(f'更新提醒成功: ID={reminder_id}')
+                logger.info(f'更新提醒成功: ID={reminder_id}, 同步更新了 {len(shared_reminders)} 个被分享的提醒')
                 
                 return jsonify({
                     'errcode': 0,
@@ -1547,9 +1691,23 @@ def accept_reminder(reminder_id):
                     'errmsg': '不能接受自己创建的提醒'
                 }), 400
             
-            # 防重复2：检查是否已经存在提醒副本
-            new_reminder_id = f"{assigned_openid}_{original_reminder.reminder_time}"
-            existing_reminder = db.query(Reminder).filter(Reminder.id == new_reminder_id).first()
+            # 防重复2：检查是否已经接受过此提醒（通过assignment表检查）
+            # 检查是否已经存在该提醒的分配记录
+            assignment_id = f"{reminder_id}_{assigned_openid}"
+            existing_assignment = db.query(ReminderAssignment).filter(
+                ReminderAssignment.id == assignment_id
+            ).first()
+            
+            # 如果已经接受过，查找对应的提醒
+            if existing_assignment and existing_assignment.status == 'accepted':
+                # 通过owner_openid和reminder_time查找已存在的提醒
+                existing_reminder = db.query(Reminder).filter(
+                    Reminder.owner_openid == original_reminder.owner_openid,
+                    Reminder.openid == assigned_openid,
+                    Reminder.reminder_time == original_reminder.reminder_time
+                ).first()
+            else:
+                existing_reminder = None
             
             if existing_reminder:
                 logger.info(f'提醒已存在: reminder_id={reminder_id}, assigned={assigned_openid}, existing_id={new_reminder_id}')
@@ -1606,10 +1764,16 @@ def accept_reminder(reminder_id):
                 db.add(assignment)
             
             # 再次检查提醒是否已存在（防止并发）
-            final_check = db.query(Reminder).filter(Reminder.id == new_reminder_id).first()
+            # 通过owner_openid和reminder_time查找
+            final_check = db.query(Reminder).filter(
+                Reminder.owner_openid == original_reminder.owner_openid,
+                Reminder.openid == assigned_openid,
+                Reminder.reminder_time == original_reminder.reminder_time
+            ).first()
+            
             if final_check:
                 db.commit()
-                logger.info(f'并发检查：提醒已存在，返回现有提醒: reminder_id={new_reminder_id}')
+                logger.info(f'并发检查：提醒已存在，返回现有提醒: reminder_id={final_check.id}')
                 return jsonify({
                     'errcode': 0,
                     'errmsg': 'success',
@@ -1620,6 +1784,10 @@ def accept_reminder(reminder_id):
                 })
             
             # 创建新提醒
+            # 使用 openid + 创建时间戳作为ID（确保ID唯一且不会因为reminderTime改变而改变）
+            create_timestamp = int(datetime.now().timestamp() * 1000)
+            new_reminder_id = f"{assigned_openid}_{create_timestamp}"
+            
             new_reminder = Reminder(
                 id=new_reminder_id,
                 openid=assigned_openid,  # 当前拥有者（被分配的好友）

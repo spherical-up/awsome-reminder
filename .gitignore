@@ -1,0 +1,35 @@
+# 日志文件
+/server/logs/
+*.log
+*.log.*
+logs/
+*.log.1
+*.log.2
+*.log.gz
+*.log.zip
+
+# Python 相关
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# 环境变量文件
+# .env
+# .env.local
+# .env.*.local
+
+# IDE 相关
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统相关
+.DS_Store
+Thumbs.db

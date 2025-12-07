@@ -73,6 +73,16 @@ Page({
       return
     }
     
+    // 权限检查：如果是被分享的提醒（fromOwner为true），不能编辑
+    if (reminder.fromOwner) {
+      wx.showToast({
+        title: '不能编辑他人分享的提醒',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+    
     wx.navigateTo({
       url: `/pages/add/add?id=${reminder.id}`
     })
@@ -171,6 +181,16 @@ Page({
       wx.showToast({
         title: '提醒信息错误',
         icon: 'none'
+      })
+      return
+    }
+    
+    // 权限检查：如果是被分享的提醒（fromOwner为true），不能删除
+    if (reminder.fromOwner) {
+      wx.showToast({
+        title: '不能删除他人分享的提醒',
+        icon: 'none',
+        duration: 2000
       })
       return
     }

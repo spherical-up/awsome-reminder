@@ -77,6 +77,25 @@ Page({
       
       const reminder = await api.getReminder(reminderId)
       
+      // 权限检查：如果是被分享的提醒（openid != ownerOpenid），不能编辑
+      const currentOpenid = await api.getUserOpenid()
+      const ownerOpenid = reminder.ownerOpenid || reminder.owner_openid
+      const reminderOpenid = reminder.openid
+      
+      // 如果当前用户不是创建者，说明这是被分享的提醒，禁止编辑
+      if (reminderOpenid !== ownerOpenid || currentOpenid !== ownerOpenid) {
+        wx.hideLoading()
+        wx.showModal({
+          title: '提示',
+          content: '不能编辑他人分享的提醒',
+          showCancel: false,
+          success: () => {
+            wx.navigateBack()
+          }
+        })
+        return
+      }
+      
       // 回填数据
       const reminderTime = reminder.reminderTime || Date.now()
       const date = new Date(reminderTime)
@@ -458,6 +477,34 @@ Page({
 
   // 保存提醒
   async saveReminder() {
+    // 如果是编辑模式，再次检查权限
+    if (this.data.isEditMode && this.data.reminderId) {
+      try {
+        const reminder = await api.getReminder(this.data.reminderId)
+        const currentOpenid = await api.getUserOpenid()
+        const ownerOpenid = reminder.ownerOpenid || reminder.owner_openid
+        const reminderOpenid = reminder.openid
+        
+        // 如果当前用户不是创建者，说明这是被分享的提醒，禁止保存
+        if (reminderOpenid !== ownerOpenid || currentOpenid !== ownerOpenid) {
+          wx.showToast({
+            title: '不能编辑他人分享的提醒',
+            icon: 'none',
+            duration: 2000
+          })
+          return
+        }
+      } catch (err) {
+        console.error('权限检查失败', err)
+        wx.showToast({
+          title: '权限验证失败',
+          icon: 'none',
+          duration: 2000
+        })
+        return
+      }
+    }
+    
     const thing1 = this.data.thing1.trim()
     const thing4 = this.data.thing4.trim()
     
