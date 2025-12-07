@@ -447,8 +447,14 @@ def get_access_token():
     global access_token, token_expires_at
     
     # 如果 token 未过期，直接返回
-    if access_token and token_expires_at and datetime.now() < token_expires_at:
-        return access_token
+    # 确保 token_expires_at 是 datetime 对象
+    if access_token and token_expires_at:
+        # 如果 token_expires_at 是 float（时间戳），转换为 datetime
+        if isinstance(token_expires_at, (int, float)):
+            token_expires_at = datetime.fromtimestamp(token_expires_at)
+        
+        if datetime.now() < token_expires_at:
+            return access_token
     
     url = f'https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={APPID}&secret={APPSECRET}'
     
