@@ -568,9 +568,10 @@ def init_app():
 
 def get_access_token():
     """
-    获取微信 access_token
-    有效期 2 小时，需要缓存
+    获取微信稳定版 access_token
+    有效期 24 小时，需要缓存
     使用 TokenManager 确保类型一致性和线程安全
+    使用稳定版 API 避免 access_token 频繁失效
     """
     # 检查 token 是否有效
     is_valid, token = token_manager.is_valid()
@@ -578,6 +579,45 @@ def get_access_token():
         return token
     
     # token 无效或不存在，重新获取
+    # 使用稳定版 access_token API
+    url = 'https://api.weixin.qq.com/cgi-bin/stable_token'
+    
+    payload = {
+        'grant_type': 'client_credential',
+        'appid': token_manager.appid,
+        'secret': token_manager.appsecret,
+        'force_refresh': False  # 不强制刷新，使用缓存的 token
+    }
+    
+    try:
+        response = requests.post(url, json=payload, timeout=10)
+        data = response.json()
+        
+        if 'access_token' in data:
+            access_token = data['access_token']
+            expires_in = data.get('expires_in', 7200)  # 稳定版 token 有效期通常是 24 小时（86400秒）
+            # 使用 TokenManager 设置 token，会自动处理过期时间
+            token_manager.set_token(access_token, expires_in)
+            
+            logger.info(f'获取稳定版 access_token 成功，有效期: {expires_in}秒')
+            return access_token
+        else:
+            logger.error(f'获取 access_token 失败: {data}')
+            # 如果稳定版 API 失败，尝试使用普通 API（兼容性处理）
+            logger.warning('稳定版 API 失败，尝试使用普通 API...')
+            return get_access_token_fallback()
+    except Exception as e:
+        logger.error(f'获取 access_token 异常: {str(e)}')
+        # 如果稳定版 API 异常，尝试使用普通 API（兼容性处理）
+        logger.warning('稳定版 API 异常，尝试使用普通 API...')
+        return get_access_token_fallback()
+
+
+def get_access_token_fallback():
+    """
+    获取微信 access_token（普通版，作为稳定版的降级方案）
+    有效期 2 小时
+    """
     url = f'https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={token_manager.appid}&secret={token_manager.appsecret}'
     
     try:
@@ -586,11 +626,10 @@ def get_access_token():
         
         if 'access_token' in data:
             access_token = data['access_token']
-            expires_in = data.get('expires_in', 7200)  # 微信返回的过期时间（秒）
-            # 使用 TokenManager 设置 token，会自动处理过期时间
+            expires_in = data.get('expires_in', 7200)  # 普通版 token 有效期 2 小时
             token_manager.set_token(access_token, expires_in)
             
-            logger.info('获取 access_token 成功')
+            logger.info(f'获取普通版 access_token 成功，有效期: {expires_in}秒')
             return access_token
         else:
             logger.error(f'获取 access_token 失败: {data}')
@@ -658,6 +697,26 @@ def send_subscribe_message(openid, template_id, page, data):
             logger.error(f'❌ 发送订阅消息失败: openid={openid}, errcode={error_code}, errmsg={error_msg}')
             if error_code in error_codes:
                 logger.error(f'错误说明: {error_codes[error_code]}')
+            
+            # 如果是 access_token 无效，清除 token 并重试一次
+            if error_code == 40001:
+                logger.warning('access_token 无效，清除缓存并重新获取...')
+                token_manager.clear()
+                # 重新获取 token 并重试
+                new_token = get_access_token()
+                if new_token and new_token != token:
+                    logger.info('重新获取 access_token 成功，重试发送消息...')
+                    # 使用新 token 重试
+                    retry_url = f'https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token={new_token}'
+                    retry_response = requests.post(retry_url, json=payload, timeout=10)
+                    retry_result = retry_response.json()
+                    
+                    if retry_result.get('errcode') == 0:
+                        logger.info(f'✅ 重试发送订阅消息成功: openid={openid}')
+                    else:
+                        logger.error(f'❌ 重试发送订阅消息仍然失败: openid={openid}, errcode={retry_result.get("errcode")}, errmsg={retry_result.get("errmsg")}')
+                    
+                    return retry_result
         
         return result
     except Exception as e:
