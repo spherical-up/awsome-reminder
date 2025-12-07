@@ -9,7 +9,8 @@
       placeholder="请输入事项主题"
       value="{{ thing1 }}"
       maxlength="20"
-      autofocus
+      autofocus="{{ !isReadOnly }}"
+      readonly="{{ isReadOnly }}"
       bind:input="onThing1Input"
     />
 
@@ -20,7 +21,7 @@
       right-icon="clock-o"
       value="{{ formattedTime }}"
       readonly
-      clickable
+      clickable="{{ !isReadOnly }}"
       placeholder="请选择日期时间"
       bind:click-input="showDateTimePicker"
     />
@@ -35,12 +36,13 @@
       placeholder="请输入事项描述"
       maxlength="200"
       show-confirm-bar="{{ false }}"
+      readonly="{{ isReadOnly }}"
       bind:input="onThing4Input"
     />
   </van-cell-group>
 
   <!-- 订阅消息开关 -->
-  <van-cell-group>
+  <van-cell-group wx:if="{{ !isReadOnly }}">
     <van-cell
       title="开启消息提醒"
       label="开启后，提醒时间到达时会收到微信消息通知"
@@ -53,8 +55,16 @@
     </van-cell>
   </van-cell-group>
 
+  <!-- 只读模式提示 -->
+  <van-cell-group wx:if="{{ isReadOnly }}">
+    <van-cell
+      title="消息提醒"
+      value="{{ enableSubscribe ? '已开启' : '未开启' }}"
+    />
+  </van-cell-group>
+
   <!-- 提交按钮 -->
-  <view class="submit">
+  <view class="submit" wx:if="{{ !isReadOnly }}">
     <van-button type="primary" block bind:click="saveReminder">保存</van-button>
   </view>
 

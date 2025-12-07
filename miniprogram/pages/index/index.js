@@ -73,16 +73,15 @@ Page({
       return
     }
     
-    // 权限检查：如果是被分享的提醒（fromOwner为true），不能编辑
+    // 如果是被分享的提醒，跳转到只读详情页
     if (reminder.fromOwner) {
-      wx.showToast({
-        title: '不能编辑他人分享的提醒',
-        icon: 'none',
-        duration: 2000
+      wx.navigateTo({
+        url: `/pages/add/add?id=${reminder.id}&readonly=true`
       })
       return
     }
     
+    // 自己的提醒，可以编辑
     wx.navigateTo({
       url: `/pages/add/add?id=${reminder.id}`
     })

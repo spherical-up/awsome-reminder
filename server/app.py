@@ -3,7 +3,7 @@
 """
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from datetime import datetime
+from datetime import datetime, timedelta
 import requests
 import json
 import os
@@ -460,7 +460,8 @@ def get_access_token():
             access_token = data['access_token']
             # 提前 5 分钟刷新 token
             expires_in = data.get('expires_in', 7200) - 300
-            token_expires_at = datetime.now().timestamp() + expires_in
+            # 将过期时间存储为 datetime 对象
+            token_expires_at = datetime.now() + timedelta(seconds=expires_in)
             
             logger.info('获取 access_token 成功')
             return access_token

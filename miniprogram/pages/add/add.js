@@ -6,6 +6,7 @@ Page({
   data: {
     reminderId: null, // 编辑模式下的提醒ID
     isEditMode: false, // 是否为编辑模式
+    isReadOnly: false, // 是否为只读模式（被分享的提醒）
     originalEnableSubscribe: false, // 编辑模式下原始的订阅状态
     thing1: '', // 事项主题
     thing4: '', // 事项描述
@@ -43,22 +44,25 @@ Page({
       dateTimePickerValue: today.getTime()
     })
 
-    // 检查是否是编辑模式
+    // 检查是否是编辑模式或只读模式
     if (options.id) {
       // ID 现在是字符串格式（openid_reminderTime），不需要 parseInt
       const reminderId = options.id
+      const isReadOnly = options.readonly === 'true' // 检查是否为只读模式
+      
       this.setData({
         reminderId: reminderId,
-        isEditMode: true
+        isEditMode: true,
+        isReadOnly: isReadOnly
       })
       
       // 设置页面标题
       wx.setNavigationBarTitle({
-        title: '编辑提醒'
+        title: isReadOnly ? '查看提醒' : '编辑提醒'
       })
       
       // 加载提醒详情
-      await this.loadReminderDetail(reminderId)
+      await this.loadReminderDetail(reminderId, isReadOnly)
     } else {
       // 设置页面标题
       wx.setNavigationBarTitle({
@@ -68,7 +72,7 @@ Page({
   },
 
   // 加载提醒详情
-  async loadReminderDetail(reminderId) {
+  async loadReminderDetail(reminderId, isReadOnly = false) {
     try {
       wx.showLoading({
         title: '加载中...',
@@ -77,23 +81,25 @@ Page({
       
       const reminder = await api.getReminder(reminderId)
       
-      // 权限检查：如果是被分享的提醒（openid != ownerOpenid），不能编辑
-      const currentOpenid = await api.getUserOpenid()
-      const ownerOpenid = reminder.ownerOpenid || reminder.owner_openid
-      const reminderOpenid = reminder.openid
-      
-      // 如果当前用户不是创建者，说明这是被分享的提醒，禁止编辑
-      if (reminderOpenid !== ownerOpenid || currentOpenid !== ownerOpenid) {
-        wx.hideLoading()
-        wx.showModal({
-          title: '提示',
-          content: '不能编辑他人分享的提醒',
-          showCancel: false,
-          success: () => {
-            wx.navigateBack()
-          }
-        })
-        return
+      // 如果不是只读模式，进行权限检查
+      if (!isReadOnly) {
+        const currentOpenid = await api.getUserOpenid()
+        const ownerOpenid = reminder.ownerOpenid || reminder.owner_openid
+        const reminderOpenid = reminder.openid
+        
+        // 如果当前用户不是创建者，说明这是被分享的提醒，禁止编辑
+        if (reminderOpenid !== ownerOpenid || currentOpenid !== ownerOpenid) {
+          wx.hideLoading()
+          wx.showModal({
+            title: '提示',
+            content: '不能编辑他人分享的提醒',
+            showCancel: false,
+            success: () => {
+              wx.navigateBack()
+            }
+          })
+          return
+        }
       }
       
       // 回填数据
@@ -148,6 +154,11 @@ Page({
 
   // 显示日期时间选择器
   showDateTimePicker() {
+    // 只读模式下不允许选择时间
+    if (this.data.isReadOnly) {
+      return
+    }
+    
     // 如果有已选时间，使用已选时间；否则使用当前时间
     const currentValue = this.data.reminderTime || Date.now()
     const date = new Date(currentValue)
@@ -477,6 +488,16 @@ Page({
 
   // 保存提醒
   async saveReminder() {
+    // 如果是只读模式，不允许保存
+    if (this.data.isReadOnly) {
+      wx.showToast({
+        title: '不能编辑他人分享的提醒',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+    
     // 如果是编辑模式，再次检查权限
     if (this.data.isEditMode && this.data.reminderId) {
       try {
