@@ -68,6 +68,7 @@ class TokenManager:
     def _normalize_expires_at(self, value):
         """
         规范化 expires_at 值，确保返回 datetime 对象或 None
+        这是关键方法，必须确保返回的始终是 datetime 对象或 None
         """
         if value is None:
             return None
@@ -81,11 +82,18 @@ class TokenManager:
             try:
                 # 判断是毫秒级还是秒级时间戳
                 if value > 1e10:  # 毫秒级时间戳（大于10位数）
-                    return datetime.fromtimestamp(value / 1000)
+                    result = datetime.fromtimestamp(value / 1000)
                 else:  # 秒级时间戳
-                    return datetime.fromtimestamp(value)
-            except (ValueError, OSError) as e:
-                logger.warning(f'时间戳转换失败: {e}, 值={value}')
+                    result = datetime.fromtimestamp(value)
+                
+                # 验证转换结果确实是 datetime 对象
+                if not isinstance(result, datetime):
+                    logger.error(f'时间戳转换后类型异常: {type(result)}, 原始值={value}')
+                    return None
+                
+                return result
+            except (ValueError, OSError, TypeError) as e:
+                logger.warning(f'时间戳转换失败: {e}, 值={value}, 类型={type(value)}')
                 return None
         
         # 其他类型，记录警告并返回 None
@@ -109,9 +117,23 @@ class TokenManager:
                 self._token = None
                 return False, None
             
+            # 再次严格检查类型，确保是 datetime 对象
+            if not isinstance(self._expires_at, datetime):
+                logger.error(f'token expires_at 类型异常: {type(self._expires_at)}, 值={self._expires_at}, 清除 token')
+                self._token = None
+                self._expires_at = None
+                return False, None
+            
             # 检查是否过期（提前5分钟刷新）
             try:
                 now = datetime.now()
+                # 再次确认类型（防御性编程）
+                if not isinstance(self._expires_at, datetime):
+                    logger.error(f'比较前类型检查失败: expires_at类型={type(self._expires_at)}, 值={self._expires_at}')
+                    self._token = None
+                    self._expires_at = None
+                    return False, None
+                
                 if now < self._expires_at:
                     return True, self._token
                 else:
@@ -134,7 +156,15 @@ class TokenManager:
             self._token = token
             # 提前 5 分钟刷新 token
             expires_in_actual = expires_in - 300
-            self._expires_at = datetime.now() + timedelta(seconds=expires_in_actual)
+            expires_at = datetime.now() + timedelta(seconds=expires_in_actual)
+            
+            # 确保设置的是 datetime 对象
+            if not isinstance(expires_at, datetime):
+                logger.error(f'set_token: 创建的 expires_at 类型异常: {type(expires_at)}, 值={expires_at}')
+                self._expires_at = None
+                return
+            
+            self._expires_at = expires_at
             logger.info(f'token 已设置，过期时间: {self._expires_at}')
     
     def clear(self):
