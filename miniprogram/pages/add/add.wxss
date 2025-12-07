@@ -13,6 +13,12 @@
   margin-top: 32rpx;
 }
 
+/* 保存按钮颜色 */
+.submit .van-button--primary {
+  background-color: #87CEFA !important;
+  border-color: #87CEFA !important;
+}
+
 /* 日期时间选择器样式 */
 .picker-container {
   background: #fff;

@@ -49,7 +49,7 @@
     >
       <van-switch
         checked="{{ enableSubscribe }}"
-        active-color="#4a90e2"
+        active-color="#87CEFA"
         bind:change="onSubscribeChange"
       />
     </van-cell>
